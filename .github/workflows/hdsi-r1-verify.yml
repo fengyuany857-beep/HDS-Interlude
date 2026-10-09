@@ -1,0 +1,97 @@
+name: HDSI R1 | Real Dependencies and Candidate CI
+
+on:
+  push:
+    branches:
+      - hdsi-r1-real-graft-20261010
+    paths:
+      - .github/workflows/hdsi-r1-verify.yml
+      - ci/hdsi-r1-real-package-smoke.cjs
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hdsi-r1-candidate-ci
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out candidate branch without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify upstream rc36 provenance and isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "hdsi-r1-real-graft-20261010"
+          git merge-base --is-ancestor 338e7096bf2df66fa0643b6518172066da379479 HEAD
+          test "$(git hash-object src/database.ts)" = "d1ceae17cb7ede3b241d533179c343acc5c7dfe6"
+          node -e "const p=require('./package.json');if(p.version!=='1.0.1-rc36')process.exit(1)"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install exact committed baseline
+        run: npm ci --no-audit --no-fund
+
+      - name: Check unmodified HDSI baseline
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Install and pin real npm libraries
+        run: npm install --save-exact --no-audit --no-fund xstate@5.33.2 json-rules-engine@7.3.1
+
+      - name: Verify installed versions and real-library runtime
+        run: |
+          npm ls xstate json-rules-engine --depth=0
+          node ci/hdsi-r1-real-package-smoke.cjs
+
+      - name: Recheck actual HDSI tests and build after dependency addition
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Commit only the exact dependency manifest and lockfile to candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "hdsi-r1-real-graft-20261010"
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No dependency changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package.json package-lock.json
+          git commit -m "build(r1): pin verified XState 5.33.2 and json-rules-engine 7.3.1"
+          git -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' push "https://github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/hdsi-r1-real-graft-20261010"
+
+      - name: Store exact CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hdsi-r1-candidate-real-packages-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            hdsi-r1-real-smoke-report.json
+            package.json
+            package-lock.json
+            HDSI_UPSTREAM_BASELINE.md
