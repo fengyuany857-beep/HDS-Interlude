@@ -2115,7 +2115,10 @@ export class InterludeService extends Service {
     // opt-in gate stores text only and deliberately produces NO model request.
     if (this.r1Inbox) {
       if (!session.messageId?.trim()) throw new Error('R1_STABLE_PLATFORM_MESSAGE_ID_REQUIRED')
-      if (extractSessionVoiceCount(session) || !session.content?.trim()) throw new Error('R1_STAGE_ONLY_TEXT_REQUIRED')
+      if (extractSessionVoiceCount(session) || extractSessionFileFacts(session).length
+        || /<(?:img|audio|video|file|record)\\b/i.test(session.content ?? '') || !session.content?.trim()) {
+        throw new Error('R1_STAGE_ONLY_TEXT_REQUIRED')
+      }
       const endpointId = [session.platform, String(session.selfId ?? ''), String(session.userId ?? '')].join(':')
       await this.r1Inbox.stage({
         storyId: story.id, participantId: participant.id, platform: session.platform,
