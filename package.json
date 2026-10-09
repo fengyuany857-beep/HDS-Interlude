@@ -75,7 +75,9 @@
     "typescript": "~5.9.3"
   },
   "dependencies": {
-    "qface": "^1.4.1"
+    "json-rules-engine": "7.3.1",
+    "qface": "^1.4.1",
+    "xstate": "5.33.2"
   },
   "repository": {
     "type": "git",
