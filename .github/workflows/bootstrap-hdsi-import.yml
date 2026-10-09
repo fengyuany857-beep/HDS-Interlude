@@ -1,0 +1,88 @@
+name: Bootstrap HDSI rc36 source import
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/bootstrap-hdsi-import.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hdsi-bootstrap-once
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out new destination repository
+        uses: actions/checkout@v4
+        with:
+          path: dest
+          fetch-depth: 0
+
+      - name: Check out immutable upstream HDSI rc36
+        uses: actions/checkout@v4
+        with:
+          repository: yunwuneo/hds-interlude
+          ref: 338e7096bf2df66fa0643b6518172066da379479
+          path: upstream
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify both source and destination
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C upstream rev-parse HEAD)" = "338e7096bf2df66fa0643b6518172066da379479"
+          test "$(git -C upstream hash-object src/database.ts)" = "d1ceae17cb7ede3b241d533179c343acc5c7dfe6"
+          grep -q '"version": "1.0.1-rc36"' upstream/package.json
+          grep -q "GNU AFFERO GENERAL PUBLIC LICENSE" upstream/LICENSE
+          test "$(git -C dest branch --show-current)" = "main"
+          test -z "$(git -C dest status --porcelain)"
+          # A newly initialized repository must contain ONLY this bootstrap file.
+          test "$(git -C dest ls-files | wc -l)" -eq 1
+          test "$(git -C dest ls-files)" = ".github/workflows/bootstrap-hdsi-import.yml"
+          test ! -e upstream/.github/workflows/bootstrap-hdsi-import.yml
+
+      - name: Import intact upstream Git history without force-push
+        working-directory: dest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch ../upstream HEAD
+          test "$(git rev-parse FETCH_HEAD)" = "338e7096bf2df66fa0643b6518172066da379479"
+          # Retain new-repo bootstrap commit AND complete upstream ancestry.
+          git merge --no-ff --no-commit --allow-unrelated-histories FETCH_HEAD
+          test "$(git hash-object src/database.ts)" = "d1ceae17cb7ede3b241d533179c343acc5c7dfe6"
+          cat > HDSI_UPSTREAM_BASELINE.md <<'EOF'
+          # HDSI Upstream Baseline
+
+          - Origin: https://github.com/yunwuneo/hds-interlude
+          - Imported source commit: `338e7096bf2df66fa0643b6518172066da379479`
+          - Source release: `koishi-plugin-hds-interlude@1.0.1-rc36`
+          - Verification: exact commit and Git blob SHA of `src/database.ts`
+          - License: AGPL-3.0 (original LICENSE preserved)
+          - Import method: Git merge with unrelated histories (source commits retained)
+          - Scope: source import only; no runtime enablement or deployment
+          - Candidate-development branch: `hdsi-r1-real-graft-20261010` (to be created separately)
+
+          This repository is an independently managed development copy, not an official upstream release.
+          EOF
+          git add HDSI_UPSTREAM_BASELINE.md
+          git commit -m "chore: import verified upstream HDSI rc36 with full history"
+          git push origin HEAD:main
+
+      - name: Report imported origin identity
+        working-directory: dest
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 338e7096bf2df66fa0643b6518172066da379479 HEAD
+          test "$(git hash-object src/database.ts)" = "d1ceae17cb7ede3b241d533179c343acc5c7dfe6"
+          echo "Upstream ancestry, source blob SHA and non-force import: PASS" >> "$GITHUB_STEP_SUMMARY"
