@@ -1,5 +1,6 @@
 import { Context, h, Logger, Service, Session, Time } from 'koishi'
 import { registerTables } from './database'
+import { R1Inbox, registerR1Tables } from './r1/inbox'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
 import {
   calculateLongHorizonScore,
@@ -731,6 +732,8 @@ export class InterludeService extends Service {
    */
   private queues = new Map<string, Promise<unknown>>()
   private turnEngine!: TurnEngine   // P0: 回合状态管理已抽出至 turn-engine.ts
+  /** Opt-in fail-closed shadow admission, never enabled by default. */
+  private r1Inbox?: R1Inbox
   private scheduler!: Scheduler     // P1: 到期唤醒/独占任务/指纹冷却已抽出至 scheduler.ts
   /** 端点注册表内存缓存（M1a）：行来自 interlude_endpoint；状态为进程内三维时效。 */
   private endpointRows: EndpointRow[] = []
@@ -822,6 +825,10 @@ export class InterludeService extends Service {
     super(ctx, 'interlude')
     this.serviceLogger = ctx.logger('hds-interlude')
     registerTables(ctx)
+    if (process.env.HDSI_R1_PRIVATE_INBOX === 'stage-only') {
+      registerR1Tables(ctx)
+      this.r1Inbox = new R1Inbox(ctx)
+    }
     // One shared token-usage sink: every chat task (main/compaction/alter/
     // sticker description) reports through here and lands in the Koishi log.
     const onUsage = (record: TokenUsageRecord) => {
@@ -2102,6 +2109,21 @@ export class InterludeService extends Service {
       return false
     }
     if (!session.content?.trim() && !extractSessionVoiceCount(session)) return false
+    // R1 stage-only: admission happens before legacy ScriptEntry/TurnEngine,
+    // interruption and prompt-visible history. Never fabricate a Koishi Session
+    // to replay after restart. Until observation/delivery E2E is proved, this
+    // opt-in gate stores text only and deliberately produces NO model request.
+    if (this.r1Inbox) {
+      if (!session.messageId?.trim()) throw new Error('R1_STABLE_PLATFORM_MESSAGE_ID_REQUIRED')
+      if (extractSessionVoiceCount(session) || !session.content?.trim()) throw new Error('R1_STAGE_ONLY_TEXT_REQUIRED')
+      const endpointId = [session.platform, String(session.selfId ?? ''), String(session.userId ?? '')].join(':')
+      await this.r1Inbox.stage({
+        storyId: story.id, participantId: participant.id, platform: session.platform,
+        endpointId, platformMessageId: session.messageId, content: session.content,
+        metadata: { platform: session.platform, messageId: session.messageId }, receivedAt,
+      })
+      return true
+    }
     // 桥接幂等：同一条消息（平台+messageId）近期已处理过则直接确认，不再入队
     // 叙事——这是桌面超时-重放双写双回的插件侧防线。
     const dedupeKey = `${session.platform}:${session.messageId}`
@@ -2901,6 +2923,7 @@ export class InterludeService extends Service {
     reply: EarlyNarrativeReply,
     requestStartedAt?: Date,
   ) {
+    if (this.r1Inbox) return false // Stage-only mode forbids early unledgered sends.
     if (reply.kind !== 'private' || !reply.interaction || reply.interaction.reply.mode !== 'immediate') return false
     if (turn.nextRevision !== requestId || turn.obsoleteRequestIds.has(requestId) || turn.firstMessageCommittedRequestId === requestId) return false
     if (!this.canHandleParticipant(participant)) return false
@@ -6194,6 +6217,7 @@ export class InterludeService extends Service {
     requestStartedAt?: Date,
   ) {
     const delivered: OutgoingMessageDraft[] = []
+    if (this.r1Inbox) return delivered // Stage-only candidate: every outbound path is disabled.
     if (!messages.length) return delivered
     const ids = Array.from(new Set(messages.map(message => message.participantId).filter(id => !!id && !id.startsWith('group:'))))
     const byId = new Map<string, InterludeParticipant>()
