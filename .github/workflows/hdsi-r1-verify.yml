@@ -9,6 +9,10 @@ on:
       - ci/hdsi-r1-real-package-smoke.cjs
       - package.json
       - package-lock.json
+      - src/r1/**
+      - src/service.ts
+      - test/r1-*.test.ts
+      - docs/R1-GITHUB-GLCG-HANDOFF.md
   workflow_dispatch:
 
 permissions:
