@@ -73,7 +73,10 @@ export class R1Inbox {
   async stage(arrival: R1Arrival): Promise<'inserted' | 'duplicate'> {
     const id = stableInboxId(arrival)
     const existing = await this.ctx.database.get('interlude_r1_inbox', { id })
-    if (existing.length) return 'duplicate'
+    if (existing.length) {
+      if (existing[0].content !== arrival.content) throw new Error('R1_CONFLICTING_MESSAGE_ID')
+      return 'duplicate'
+    }
     try {
       await this.ctx.database.create('interlude_r1_inbox', {
         ...arrival, id, metadata: arrival.metadata ?? {}, status: 'unobserved',
@@ -82,7 +85,10 @@ export class R1Inbox {
     } catch (error) {
       // Only a committed identical ID can turn an insertion error into a duplicate.
       const again = await this.ctx.database.get('interlude_r1_inbox', { id })
-      if (again.length) return 'duplicate'
+      if (again.length) {
+        if (again[0].content !== arrival.content) throw new Error('R1_CONFLICTING_MESSAGE_ID')
+        return 'duplicate'
+      }
       throw error
     }
   }
@@ -151,6 +157,10 @@ export class R1Inbox {
         if (!row) throw new Error('R1_INBOX_IDENTITY_MISMATCH')
         if (row.status === 'observed') {
           if (!row.scriptEntryId) throw new Error('R1_INCOMPLETE_PROMOTION')
+          const receipt = (await tx.get('interlude_script_entry', { id: row.scriptEntryId, storyId, participantId }))[0]
+          if (!receipt || receipt.metadata?.sourceInboxId !== row.id || receipt.kind !== 'user-message' || receipt.actor !== 'user' || receipt.content !== row.content.slice(0, 12_000)) {
+            throw new Error('R1_PROMOTION_RECEIPT_MISMATCH')
+          }
           promoted.push(row.scriptEntryId)
           continue
         }
