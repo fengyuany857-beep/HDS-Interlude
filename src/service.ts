@@ -4,6 +4,7 @@ import { R1Inbox, registerR1Tables, type R1AttentionRow } from './r1/inbox'
 import type { AttentionEvent } from './r1/attention'
 import { prepareObservedCommit, type ObservedCommitInput, type ObservedCommitProposal } from './r1/observed-commit'
 import { assertHostAuthorized, type ActionEvidence } from './r1/reality'
+import { R1ProposalReceipts, registerR1ProposalReceiptTable, type R1ProposalReceiptRow } from './r1/proposal-receipts'
 import { R2GoalLedger, registerR2GoalTables, type R2GoalStateRow } from './r2/goal-ledger'
 import { proposeYukaGoal, type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
@@ -739,6 +740,7 @@ export class InterludeService extends Service {
   private turnEngine!: TurnEngine   // P0: 回合状态管理已抽出至 turn-engine.ts
   /** Opt-in fail-closed shadow admission, never enabled by default. */
   private r1Inbox?: R1Inbox
+  private r1ProposalReceipts?: R1ProposalReceipts
   /** Candidate-only durable proposals. These are never actual performed actions. */
   private r2GoalLedger?: R2GoalLedger
   /** Distinct timer namespace: R2 reviews must never replace script delivery wakes. */
@@ -826,7 +828,10 @@ export class InterludeService extends Service {
       if (this.databaseResetting || this.desktopRuntimePhase === 'paused') throw new Error('R1_RUNTIME_HALTED')
       if (this.turnEngine.hasPendingNarrative(request.storyId, () => false)) throw new Error('R1_TURN_BUSY')
       const [scriptEntryId] = await this.r1Inbox!.observe(request.storyId, request.participantId, [request.inboxId], request.now)
-      return prepareObservedCommit(this.ctx, { ...request, scriptEntryId })
+      const proposal = await prepareObservedCommit(this.ctx, { ...request, scriptEntryId })
+      if (!this.r1ProposalReceipts) throw new Error('R1_REVIEW_LEDGER_DISABLED')
+      await this.r1ProposalReceipts.open(proposal, request.now)
+      return proposal
     })
   }
 
@@ -834,6 +839,17 @@ export class InterludeService extends Service {
   async transitionR1Attention(storyId: string, event: AttentionEvent, now = new Date()): Promise<R1AttentionRow> {
     if (!this.r1Inbox) throw new Error('R1_OBSERVATION_DISABLED')
     return this.serial(storyId, () => this.r1Inbox!.updateAttention(storyId, event, now))
+  }
+
+  /** Review queue proves only a proposal was recorded; it never claims delivery. */
+  async pendingR1Review(storyId: string, participantId: string): Promise<R1ProposalReceiptRow[]> {
+    if (!this.r1ProposalReceipts) throw new Error('R1_REVIEW_LEDGER_DISABLED')
+    return this.r1ProposalReceipts.pending(storyId, participantId)
+  }
+
+  async rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow> {
+    if (!this.r1ProposalReceipts) throw new Error('R1_REVIEW_LEDGER_DISABLED')
+    return this.r1ProposalReceipts.reject(id, reason)
   }
 
   /** R2 writes only durable goal proposals; Scheduler only marks review due. */
@@ -905,7 +921,9 @@ export class InterludeService extends Service {
     registerTables(ctx)
     if (process.env.HDSI_R1_PRIVATE_INBOX === 'stage-only') {
       registerR1Tables(ctx)
+      registerR1ProposalReceiptTable(ctx)
       this.r1Inbox = new R1Inbox(ctx)
+      this.r1ProposalReceipts = new R1ProposalReceipts(ctx)
     }
     if (process.env.HDSI_R2_SHADOW_PLANNER === 'proposal-only') {
       registerR2GoalTables(ctx)
