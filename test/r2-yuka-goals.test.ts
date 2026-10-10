@@ -8,7 +8,8 @@ function observed(overrides: Partial<R2HostEvidence> = {}): R2HostEvidence {
   return {
     storyId: 'story:r2-isolated', now, observedAt: '2026-10-10T11:58:00.000Z',
     verifiedByHost: true, energy: 80, activityLoad: 'free',
-    attentionMode: 'attentive', commitments: [], verifiedSourceEntryIds: [10, 31, 42], ...overrides,
+    attentionMode: 'attentive', commitments: [], verifiedSourceEntryIds: [10, 31, 42],
+    permittedContactParticipantIds: ['p:42'], ...overrides,
   }
 }
 
@@ -67,6 +68,12 @@ test('R2 contact consideration requires existing Agency capacity and ScriptEntry
   })).goal, 'fulfill-commitment')
   assert.equal(proposeYukaGoal(observed({ ...parent,
     proposedContact: { ...proposedContact, sourceEntryIds: [99] },
+  })).goal, 'fulfill-commitment')
+  assert.equal(proposeYukaGoal(observed({ ...parent,
+    permittedContactParticipantIds: ['different-person'],
+  })).goal, 'fulfill-commitment')
+  assert.equal(proposeYukaGoal(observed({ ...parent,
+    agencyWindow: { ...window, sourceEntryIds: [99] },
   })).goal, 'fulfill-commitment')
 })
 
