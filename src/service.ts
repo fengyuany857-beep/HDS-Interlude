@@ -1,6 +1,7 @@
 import { Context, h, Logger, Service, Session, Time } from 'koishi'
 import { registerTables } from './database'
 import { R1Inbox, registerR1Tables } from './r1/inbox'
+import { proposeYukaGoal, type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
 import {
   calculateLongHorizonScore,
@@ -789,6 +790,17 @@ export class InterludeService extends Service {
    * P3 Fix: constructor 末尾初始化为当前 canonical story，减少首轮漏记。 */
   private lastActiveStoryId?: string
   private get canonicalStoryIdForHealth() { return this.lastActiveStoryId ?? '' }
+  /**
+   * R2 candidate-only hook: calculate a read-only Yuka proposal against
+   * trusted, already resolved host evidence. The method is disabled by default.
+   * It does not mutate Agency, Scheduler, TurnEngine, ScriptEntry or transport.
+   * Execution requires a separately reviewed ScriptCommit/Reality gate.
+   */
+  proposeR2ShadowGoal(evidence: R2HostEvidence): R2GoalProposal {
+    if (process.env.HDSI_R2_SHADOW_PLANNER !== 'proposal-only') throw new Error('R2_SHADOW_DISABLED')
+    return proposeYukaGoal(evidence)
+  }
+
   /** P2 Fix: 主动联系计数——发送动作入列后待平台确认的数量。 */
   private pendingProactiveCount = 0
   private cachedAutoAdvanceConfig?: AutoAdvanceConfig
