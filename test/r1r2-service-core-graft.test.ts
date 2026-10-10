@@ -134,3 +134,23 @@ test('R2 service proposal never becomes an action, and disabled host gate refuse
     await assert.rejects(() => disabled.submitR2HostGoal(evidence), /R2_GOAL_LEDGER_DISABLED/)
   } finally { await app.stop() }
 })
+
+test('R1 stage-only candidate refuses every direct transport family without invoking a bot', async () => {
+  const fixture: any = Object.create(InterludeService.prototype)
+  fixture.r1Inbox = {}
+  fixture.config = { runtime: { messageSeparator: '<sep/>', splitReplyMessages: true } }
+  let attempts = 0
+  const session: any = { bot: { sendMessage: async () => { attempts++; return ['transport-id'] } } }
+  const story: any = { id: 'isolated:story' }
+  const group = await fixture.sendGroupMessage(story, 'group:12345', 'first<sep/>second', undefined, session)
+  assert.equal(group.complete, false)
+  assert.equal(group.segmentOutcomes.length, 2)
+  assert.ok(group.segmentOutcomes.every((outcome: any) => outcome.reason === 'r1-review-required'))
+  assert.equal(await fixture.sendSticker(story, session, 'private:alice', { assetId: 'fixture', filePath: 'fixture.png' }), false)
+  assert.equal(await fixture.sendNativeFace(story, session, 'private:alice', 'smile'), false)
+  assert.deepEqual(await fixture.sendOutgoingMessages(story, [{ participantId: 'alice', content: 'Hello' }]), [])
+  const qzone = await fixture.qzoneExecute(story, 'post', { content: 'Fixture' })
+  assert.equal(qzone.ok, false)
+  assert.equal(qzone.error, 'R1_REVIEW_REQUIRED')
+  assert.equal(attempts, 0, 'no platform transport may be attempted in R1 review mode')
+})
