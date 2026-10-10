@@ -62,12 +62,36 @@ const ms = (value: Date) => new Date(value).getTime()
 export class R2GoalLedger {
   constructor(private readonly ctx: Context, private readonly clock: () => Date = () => new Date()) {}
 
+  private prepared?: Promise<void>
+
+  /**
+   * SQLite/Minato lazily prepares dynamically registered tables. Preparing
+   * outside the write transaction prevents a rejected first proposal from
+   * rolling back its CREATE TABLE alongside the proposal.
+   * This adapter requires the real Minato driver schema API, or fails closed.
+   */
+  private async ensureSchema(): Promise<void> {
+    if (!this.prepared) {
+      this.prepared = (async () => {
+        const driver = (this.ctx.database as unknown as {
+          _driver?: { prepare?: (name: string) => Promise<void> }
+        })._driver
+        if (typeof driver?.prepare !== 'function') throw new Error('R2_MINATO_SCHEMA_PREPARE_UNAVAILABLE')
+        await driver.prepare('interlude_r2_goal_state')
+        await driver.prepare('interlude_r2_goal_event')
+      })().catch(error => { this.prepared = undefined; throw error })
+    }
+    await this.prepared
+  }
+
   async current(storyId: string): Promise<R2GoalStateRow | undefined> {
+    await this.ensureSchema()
     const rows = await this.ctx.database.get('interlude_r2_goal_state', { storyId })
     return rows[0]
   }
 
   async history(storyId: string): Promise<R2GoalEventRow[]> {
+    await this.ensureSchema()
     const rows = await this.ctx.database.get('interlude_r2_goal_event', { storyId }, {
       sort: { occurredAt: 'asc' }, limit: 100,
     })
@@ -94,6 +118,7 @@ export class R2GoalLedger {
       throw new Error('R2_HOST_CLOCK_MISMATCH')
     }
     const proposal = proposeYukaGoal(evidence)
+    await this.ensureSchema()
     if (proposal.status !== 'proposed' || !proposal.goal || proposal.sideEffects !== 'none') {
       throw new Error('R2_EVIDENCE_INCOMPLETE')
     }
@@ -139,7 +164,12 @@ export class R2GoalLedger {
       } else {
         const updated = await tx.set('interlude_r2_goal_state', {
           storyId: evidence.storyId, revision: old.revision,
-        }, next)
+        }, {
+          proposalId: next.proposalId, goal: next.goal,
+          evidenceFingerprint: next.evidenceFingerprint, evidenceSourceIds: next.evidenceSourceIds,
+          status: next.status, revision: next.revision, proposedAt: next.proposedAt,
+          nextReviewAt: next.nextReviewAt, updatedAt: next.updatedAt,
+        })
         if (updated.matched !== 1) throw new Error('R2_GOAL_REVISION_CONFLICT')
       }
       return next
@@ -151,6 +181,7 @@ export class R2GoalLedger {
    * proposal needs a fresh host observation. It never says an action occurred.
    */
   async advanceReview(storyId: string, at: Date = this.clock()): Promise<R2GoalStateRow | undefined> {
+    await this.ensureSchema()
     const atTime = ms(at)
     if (!storyId || !Number.isFinite(atTime)) throw new Error('R2_INVALID_REVIEW_TIME')
     if (atTime > this.clock().getTime() + 60_000) throw new Error('R2_FUTURE_REVIEW_FORBIDDEN')
@@ -166,7 +197,7 @@ export class R2GoalLedger {
       })
       const updated = await tx.set('interlude_r2_goal_state', {
         storyId, revision: old.revision, status: 'proposed',
-      }, next)
+      }, { status: 'review-due', revision: next.revision, updatedAt: at })
       if (updated.matched !== 1) throw new Error('R2_GOAL_REVISION_CONFLICT')
       return next
     })
