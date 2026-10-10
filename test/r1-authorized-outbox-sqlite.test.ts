@@ -37,6 +37,22 @@ async function withDb<T>(path: string, verifier: R1ApprovalVerifier | undefined,
   finally { await app.stop() }
 }
 
+async function openOutbox(path: string): Promise<{ app: Context, outbox: R1AuthorizedOutbox }> {
+  const app = new Context()
+  app.plugin(SQLiteDriver, { path })
+  let resolve!: (outbox: R1AuthorizedOutbox) => void
+  const ready = new Promise<R1AuthorizedOutbox>(ok => { resolve = ok })
+  app.inject(['database'], ctx => {
+    registerTables(ctx)
+    registerR1Tables(ctx)
+    registerR1ProposalReceiptTable(ctx)
+    registerR1OutboxTables(ctx)
+    resolve(new R1AuthorizedOutbox(ctx))
+  })
+  await app.start()
+  return { app, outbox: await ready }
+}
+
 const now = new Date('2026-10-10T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms)
 const trusted: R1ApprovalVerifier = async grant =>
@@ -261,4 +277,27 @@ test('R1 real TCP reset after write is UNKNOWN and the exact payload is never re
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   }
+})
+
+test('R1 independent SQLite contexts cannot both claim one durable delivery', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hdsi-outbox-multiprocess-shape-'))
+  const path = join(dir, 'outbox.db')
+  let id = ''
+  try {
+    await withDb(path, trusted, async (ctx, box, reviews, outbox) => {
+      const { approval } = await stageProposal(ctx, box, reviews)
+      id = (await outbox.authorize(approval, now)).id
+    })
+    const first = await openOutbox(path)
+    const second = await openOutbox(path)
+    try {
+      const claims = await Promise.allSettled([
+        first.outbox.claim(id, later(500)), second.outbox.claim(id, later(500)),
+      ])
+      assert.equal(claims.filter(result => result.status === 'fulfilled').length, 1)
+      assert.equal(claims.filter(result => result.status === 'rejected').length, 1)
+    } finally {
+      await Promise.all([first.app.stop(), second.app.stop()])
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }) }
 })

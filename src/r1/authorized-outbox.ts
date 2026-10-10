@@ -126,7 +126,22 @@ export class R1AuthorizedOutbox {
     if (typeof db.withTransaction !== 'function') throw Error('R1_OUTBOX_TRANSACTION_REQUIRED')
     const key = ((db as unknown as { _driver?: object })._driver ?? db) as object
     const prior = driverQueues.get(key) ?? Promise.resolve()
-    const current = prior.then(() => db.withTransaction!(fn))
+    const current = prior.then(async () => {
+      const driver = (db as unknown as { _driver?: { _run?: (sql: string) => unknown } })._driver
+      if (typeof driver?._run !== 'function') return db.withTransaction!(fn)
+      // Minato SQLite uses deferred BEGIN, which permits two processes to read
+      // the same authorized row and deadlock while upgrading to writers. Take
+      // the SQLite write reservation before the read/CAS sequence instead.
+      driver._run('BEGIN IMMEDIATE')
+      try {
+        const result = await fn(db)
+        driver._run('COMMIT')
+        return result
+      } catch (error) {
+        try { driver._run('ROLLBACK') } catch { /* preserve the original error */ }
+        throw error
+      }
+    })
     driverQueues.set(key, current.then(() => undefined, () => undefined))
     return current
   }
