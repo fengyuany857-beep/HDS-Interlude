@@ -7,6 +7,7 @@ import { registerTables } from '../src/database'
 import { InterludeService } from '../src/service'
 import { createTurnEngine } from '../src/turn-engine'
 import { R1Inbox, registerR1Tables, stableInboxId, type R1Arrival } from '../src/r1/inbox'
+import { R1ProposalReceipts, registerR1ProposalReceiptTable } from '../src/r1/proposal-receipts'
 import { R2GoalLedger, registerR2GoalTables } from '../src/r2/goal-ledger'
 
 /**
@@ -21,6 +22,7 @@ test('R1 candidate service: host reality gate, TurnEngine contention and exact s
   app.plugin(mock)
   registerTables(app)
   registerR1Tables(app)
+  registerR1ProposalReceiptTable(app)
   const now = new Date('2026-10-10T12:00:00.000Z')
   let inbox!: R1Inbox
   let service!: InterludeService
@@ -30,6 +32,7 @@ test('R1 candidate service: host reality gate, TurnEngine contention and exact s
     const fixture: any = Object.create(InterludeService.prototype)
     fixture.ctx = ctx
     fixture.r1Inbox = inbox
+    fixture.r1ProposalReceipts = new R1ProposalReceipts(ctx)
     fixture.queues = new Map()
     fixture.desktopRuntimePhase = 'running'
     fixture.turnEngine = createTurnEngine({
@@ -76,9 +79,16 @@ test('R1 candidate service: host reality gate, TurnEngine contention and exact s
     assert.equal(result.sideEffects, 'none')
     assert.equal(result.commit.events.filter(event => event.kind === 'outgoing-message').length, 1)
     assert.equal((await app.database.get('interlude_script_entry', { storyId: arrival.storyId })).length, 1)
+    const review = await service.pendingR1Review(arrival.storyId, arrival.participantId)
+    assert.equal(review.length, 1)
+    assert.equal(review[0].status, 'pending-review')
     const same = await service.observeR1AndPrepare(input, allow)
     assert.equal(same.sourceScriptEntryId, result.sourceScriptEntryId)
     assert.equal(same.commit.commitId, result.commit.commitId)
+    assert.equal((await service.pendingR1Review(arrival.storyId, arrival.participantId)).length, 1)
+    const rejected = await service.rejectR1Proposal(review[0].id, 'host rejected unsafe wording')
+    assert.equal(rejected.status, 'rejected')
+    assert.equal((await service.pendingR1Review(arrival.storyId, arrival.participantId)).length, 0)
     await assert.rejects(() => service.observeR1AndPrepare({ ...input, participantId: 'other' }, allow), /R1_INBOX_IDENTITY_MISMATCH/)
     assert.equal((await app.database.get('interlude_script_entry', { storyId: arrival.storyId })).length, 1)
   } finally { await app.stop() }
