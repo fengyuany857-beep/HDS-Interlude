@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - hdsi-r1r2-real-test-graft-20261010
+      - hdsi-r1r2-core-graft-20261011
   workflow_dispatch:
 
 permissions:
@@ -22,7 +23,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "hdsi-r1r2-real-test-graft-20261010"
+          test "$GITHUB_REF_NAME" = "hdsi-r1r2-real-test-graft-20261010" || test "$GITHUB_REF_NAME" = "hdsi-r1r2-core-graft-20261011"
           git merge-base --is-ancestor bac4af1d4b84bfd3d8fae689f263f0b34e0fbd84 HEAD
           test "$(git hash-object src/database.ts)" = "d1ceae17cb7ede3b241d533179c343acc5c7dfe6"
       - uses: actions/setup-node@v4
