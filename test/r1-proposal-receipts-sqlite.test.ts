@@ -69,6 +69,17 @@ test('R1 proposal receipts persist across restart, serialize collisions and pres
         ...proposal,
         sourceInboxId: 'wrong-source',
       }, now), /R1_RECEIPT_SOURCE_MISMATCH/)
+      const superseding = await prepareObservedCommit(ctx, {
+        storyId: arrival.storyId, participantId: arrival.participantId,
+        inboxId: stableInboxId(arrival), scriptEntryId: proposal.sourceScriptEntryId,
+        frameId: 'frame:1', burstId: 'burst:1',
+        now: new Date(now.getTime() + 1_000),
+        decision: {
+          script: '她回答“在呢”。',
+          interaction: { seen: true, reply: { mode: 'immediate', content: '在呢' } },
+        },
+      })
+      await assert.rejects(() => receipts.open(superseding), /R1_RECEIPT_SOURCE_ALREADY_PROPOSED/)
       const rejected = await receipts.reject(receiptId, 'unsafe script', now)
       assert.equal(rejected.status, 'rejected')
       assert.equal((await receipts.reject(receiptId, 'unsafe script', now)).revision, rejected.revision)
