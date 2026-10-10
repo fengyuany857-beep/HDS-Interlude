@@ -26,18 +26,19 @@ export interface ObservedCommitProposal {
 }
 
 /** Read-only bridge from a verified promoted Inbox row to an unexecuted script proposal. */
-export async function prepareObservedCommit(ctx: Context, request: ObservedCommitInput): Promise<ObservedCommitProposal> {
+export async function prepareObservedCommit(ctx: Context, request: ObservedCommitInput,
+  reader: Pick<Context['database'], 'get'> = ctx.database): Promise<ObservedCommitProposal> {
   if (!request.storyId?.trim() || !request.participantId?.trim() || !request.inboxId?.trim()
     || !Number.isSafeInteger(request.scriptEntryId) || request.scriptEntryId <= 0
     || !request.frameId?.trim() || !request.burstId?.trim()) throw Error('R1_INVALID_OBSERVATION_IDENTITY')
   const now = request.now instanceof Date ? request.now.getTime() : NaN
   if (!Number.isFinite(now)) throw Error('R1_INVALID_OBSERVATION_TIME')
-  const row = (await ctx.database.get('interlude_r1_inbox', {
+  const row = (await reader.get('interlude_r1_inbox', {
     id: request.inboxId, storyId: request.storyId,
     participantId: request.participantId, status: 'observed',
   }))[0]
   if (!row || !row.observedAt || row.scriptEntryId !== request.scriptEntryId) throw Error('R1_NOT_OBSERVED')
-  const entry = (await ctx.database.get('interlude_script_entry', {
+  const entry = (await reader.get('interlude_script_entry', {
     id: request.scriptEntryId, storyId: request.storyId, participantId: request.participantId,
   }))[0]
   if (!entry || entry.kind !== 'user-message' || entry.actor !== 'user'
