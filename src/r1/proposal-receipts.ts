@@ -96,6 +96,15 @@ export class R1ProposalReceipts {
       if (!source || source.scriptEntryId !== proposal.sourceScriptEntryId
         || !entry || entry.metadata?.sourceInboxId !== proposal.sourceInboxId
         || entry.kind !== 'user-message' || entry.actor !== 'user') throw new Error('R1_RECEIPT_SOURCE_MISMATCH')
+      // One observed platform message must not spawn multiple divergent
+      // outbound reviews merely because a caller replays with a new clock.
+      const priorForSource = await tx.get('interlude_r1_proposal_receipt', {
+        sourceInboxId: proposal.sourceInboxId,
+      })
+      if (priorForSource.some(row => row.commitId !== commit.commitId
+        || row.sourceScriptEntryId !== proposal.sourceScriptEntryId)) {
+        throw new Error('R1_RECEIPT_SOURCE_ALREADY_PROPOSED')
+      }
       const result: R1ProposalReceiptRow[] = []
       for (const event of events) {
         const id = digest(['r1-proposal', commit.storyId, commit.participantId, commit.commitId, event.eventId])
