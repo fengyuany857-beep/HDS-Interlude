@@ -1,0 +1,38 @@
+name: HDSI Production Model Acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  model-behavior:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release-acceptance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.15.0'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Require release acceptance model credentials
+        env:
+          HDSI_TEST_PROVIDER_ENDPOINT: ${{ secrets.HDSI_TEST_PROVIDER_ENDPOINT }}
+          HDSI_TEST_API_KEY: ${{ secrets.HDSI_TEST_API_KEY }}
+          HDSI_TEST_MODEL: ${{ vars.HDSI_TEST_MODEL }}
+        run: |
+          set -euo pipefail
+          test -n "$HDSI_TEST_PROVIDER_ENDPOINT"
+          test -n "$HDSI_TEST_API_KEY"
+          test -n "$HDSI_TEST_MODEL"
+      - name: Run all four production-prompt behavior tests without skips
+        env:
+          HDSI_TEST_PROVIDER_ENDPOINT: ${{ secrets.HDSI_TEST_PROVIDER_ENDPOINT }}
+          HDSI_TEST_API_KEY: ${{ secrets.HDSI_TEST_API_KEY }}
+          HDSI_TEST_MODEL: ${{ vars.HDSI_TEST_MODEL }}
+        run: npm run test:model
