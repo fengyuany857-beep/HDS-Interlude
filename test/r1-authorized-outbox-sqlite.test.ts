@@ -99,8 +99,12 @@ test('R1 outbox fail-closed authority checks source, account, payload and expiry
       /R1_OUTBOX_HOST_DENIED/)
     assert.equal((await outbox.history(auth.id)).length, 1)
     assert.equal((await ctx.database.get('interlude_script_entry', { storyId: auth.storyId })).length, 1)
-    assert.equal((await reviews.pending(auth.storyId, auth.participantId)).length, 1,
-      'review stays pending: authorization does not silently mark it sent')
+    assert.equal((await reviews.pending(auth.storyId, auth.participantId)).length, 0,
+      'authorized review is not an unreviewed proposal and is still NOT sent')
+    assert.equal((await ctx.database.get('interlude_r1_proposal_receipt', { id: auth.id }))[0].status,
+      'authorized')
+    await assert.rejects(() => reviews.reject(auth.id, 'late rejection', later(1_000)),
+      /R1_RECEIPT_ALREADY_AUTHORIZED/)
   })
 })
 
