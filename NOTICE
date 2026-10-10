@@ -1,0 +1,20 @@
+HDS-Interlude
+Copyright contributors to HDS-Interlude.
+
+This distribution is licensed under GNU Affero General Public License v3.0.
+The complete license text is provided in LICENSE.
+
+Original upstream project and attribution:
+  MomoiCore / HDS-Interlude
+  https://gitee.com/MomoiCore/HDS-Interlude
+
+Candidate integration and corresponding source:
+  https://github.com/fengyuany857-beep/HDS-Interlude
+
+Direct runtime dependencies retain their own licenses:
+  json-rules-engine 7.3.1 — ISC — https://github.com/cachecontrol/json-rules-engine
+  qface 1.4.1 — MIT — https://github.com/koishijs/QFace
+  xstate 5.33.2 — MIT — https://github.com/statelyai/xstate
+
+Koishi and optional/peer integrations are not bundled in the npm tarball. Their
+licenses and notices remain with their respective distributions.

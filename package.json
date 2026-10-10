@@ -15,6 +15,7 @@
   },
   "files": [
     "lib",
+    "NOTICE",
     "README.md",
     "DEPLOYMENT_GUIDE.md",
     "CONFIGURATION_GUIDE.md",
@@ -89,10 +90,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gitee.com/MomoiCore/HDS-Interlude.git"
+    "url": "git+https://github.com/fengyuany857-beep/HDS-Interlude.git"
   },
-  "homepage": "https://gitee.com/MomoiCore/HDS-Interlude#readme",
+  "homepage": "https://github.com/fengyuany857-beep/HDS-Interlude#readme",
   "bugs": {
-    "url": "https://gitee.com/MomoiCore/HDS-Interlude/issues"
-  }
+    "url": "https://github.com/fengyuany857-beep/HDS-Interlude/issues"
+  },
+  "upstream": "https://gitee.com/MomoiCore/HDS-Interlude"
 }
