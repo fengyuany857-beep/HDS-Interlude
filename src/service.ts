@@ -1,6 +1,10 @@
 import { Context, h, Logger, Service, Session, Time } from 'koishi'
 import { registerTables } from './database'
-import { R1Inbox, registerR1Tables } from './r1/inbox'
+import { R1Inbox, registerR1Tables, type R1AttentionRow } from './r1/inbox'
+import type { AttentionEvent } from './r1/attention'
+import { prepareObservedCommit, type ObservedCommitInput, type ObservedCommitProposal } from './r1/observed-commit'
+import { assertHostAuthorized, type ActionEvidence } from './r1/reality'
+import { R2GoalLedger, registerR2GoalTables, type R2GoalStateRow } from './r2/goal-ledger'
 import { proposeYukaGoal, type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
 import {
@@ -735,6 +739,8 @@ export class InterludeService extends Service {
   private turnEngine!: TurnEngine   // P0: 回合状态管理已抽出至 turn-engine.ts
   /** Opt-in fail-closed shadow admission, never enabled by default. */
   private r1Inbox?: R1Inbox
+  /** Candidate-only durable proposals. These are never actual performed actions. */
+  private r2GoalLedger?: R2GoalLedger
   private scheduler!: Scheduler     // P1: 到期唤醒/独占任务/指纹冷却已抽出至 scheduler.ts
   /** 端点注册表内存缓存（M1a）：行来自 interlude_endpoint；状态为进程内三维时效。 */
   private endpointRows: EndpointRow[] = []
@@ -801,6 +807,57 @@ export class InterludeService extends Service {
     return proposeYukaGoal(evidence)
   }
 
+  /**
+   * An explicit trusted host observation is the only R1 promotion entrypoint.
+   * This uses the existing story lock and refuses concurrent TurnEngine work;
+   * it never synthesizes a Session, invokes the narrator, or sends messages.
+   * A prepared ScriptCommit is only a review proposal, not a delivery lease.
+   */
+  async observeR1AndPrepare(
+    request: Omit<ObservedCommitInput, 'scriptEntryId'>,
+    evidence: ActionEvidence,
+  ): Promise<ObservedCommitProposal> {
+    if (!this.r1Inbox) throw new Error('R1_OBSERVATION_DISABLED')
+    if (!request?.storyId || !request.participantId || !request.inboxId) throw new Error('R1_INVALID_OBSERVATION_IDENTITY')
+    await assertHostAuthorized(evidence)
+    return this.serial(request.storyId, async () => {
+      if (this.databaseResetting || this.desktopRuntimePhase === 'paused') throw new Error('R1_RUNTIME_HALTED')
+      if (this.turnEngine.hasPendingNarrative(request.storyId, () => false)) throw new Error('R1_TURN_BUSY')
+      const [scriptEntryId] = await this.r1Inbox!.observe(request.storyId, request.participantId, [request.inboxId], request.now)
+      return prepareObservedCommit(this.ctx, { ...request, scriptEntryId })
+    })
+  }
+
+  /** Host-controlled attention changes are never inferred from an LLM reply. */
+  async transitionR1Attention(storyId: string, event: AttentionEvent, now = new Date()): Promise<R1AttentionRow> {
+    if (!this.r1Inbox) throw new Error('R1_OBSERVATION_DISABLED')
+    return this.serial(storyId, () => this.r1Inbox!.updateAttention(storyId, event, now))
+  }
+
+  /** R2 writes only durable goal proposals; Scheduler only marks review due. */
+  async submitR2HostGoal(evidence: R2HostEvidence): Promise<R2GoalStateRow> {
+    if (!this.r2GoalLedger) throw new Error('R2_GOAL_LEDGER_DISABLED')
+    const state = await this.r2GoalLedger.submit(evidence)
+    this.scheduleR2ReviewState(state)
+    return state
+  }
+
+  /** Explicit restore hook, safe after restart; never auto-replays actions. */
+  async restoreR2Review(storyId: string): Promise<R2GoalStateRow | undefined> {
+    if (!this.r2GoalLedger) throw new Error('R2_GOAL_LEDGER_DISABLED')
+    const state = await this.r2GoalLedger.current(storyId)
+    if (state) this.scheduleR2ReviewState(state)
+    return state
+  }
+
+  private scheduleR2ReviewState(state: R2GoalStateRow): void {
+    if (!this.r2GoalLedger || state.status !== 'proposed') return
+    this.scheduler.scheduleWake(state.storyId, new Date(state.nextReviewAt), async () => {
+      if (this.databaseResetting || this.desktopRuntimePhase === 'paused') return 'busy'
+      await this.r2GoalLedger!.advanceReview(state.storyId, new Date())
+    })
+  }
+
   /** P2 Fix: 主动联系计数——发送动作入列后待平台确认的数量。 */
   private pendingProactiveCount = 0
   private cachedAutoAdvanceConfig?: AutoAdvanceConfig
@@ -840,6 +897,10 @@ export class InterludeService extends Service {
     if (process.env.HDSI_R1_PRIVATE_INBOX === 'stage-only') {
       registerR1Tables(ctx)
       this.r1Inbox = new R1Inbox(ctx)
+    }
+    if (process.env.HDSI_R2_SHADOW_PLANNER === 'proposal-only') {
+      registerR2GoalTables(ctx)
+      this.r2GoalLedger = new R2GoalLedger(ctx)
     }
     // One shared token-usage sink: every chat task (main/compaction/alter/
     // sticker description) reports through here and lands in the Koishi log.
