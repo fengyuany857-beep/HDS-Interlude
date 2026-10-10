@@ -1,4 +1,12 @@
 import { Context, Service, Session } from 'koishi';
+import { type R1AttentionRow } from './r1/inbox';
+import type { AttentionEvent } from './r1/attention';
+import { type ObservedCommitInput, type ObservedCommitProposal } from './r1/observed-commit';
+import { type ActionEvidence } from './r1/reality';
+import { type R1ProposalReceiptRow } from './r1/proposal-receipts';
+import { type R1OutboxRow } from './r1/authorized-outbox';
+import { type R2GoalStateRow } from './r2/goal-ledger';
+import { type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner';
 import { type QzoneActionKind } from './qzone';
 import { type EndpointRow, type StoryAliasRecord } from './endpoints';
 import { HealthMonitor } from './health';
@@ -442,6 +450,15 @@ export declare class InterludeService extends Service {
      */
     private queues;
     private turnEngine;
+    /** Opt-in fail-closed shadow admission, never enabled by default. */
+    private r1Inbox?;
+    private r1ProposalReceipts?;
+    /** R1 shadow-only outbox: no host verifier and no platform sender are installed. */
+    private r1Outbox?;
+    /** Candidate-only durable proposals. These are never actual performed actions. */
+    private r2GoalLedger?;
+    /** Distinct timer namespace: R2 reviews must never replace script delivery wakes. */
+    private r2ReviewScheduler?;
     private scheduler;
     /** 端点注册表内存缓存（M1a）：行来自 interlude_endpoint；状态为进程内三维时效。 */
     private endpointRows;
@@ -497,6 +514,32 @@ export declare class InterludeService extends Service {
      * P3 Fix: constructor 末尾初始化为当前 canonical story，减少首轮漏记。 */
     private lastActiveStoryId?;
     private get canonicalStoryIdForHealth();
+    /**
+     * R2 candidate-only hook: calculate a read-only Yuka proposal against
+     * trusted, already resolved host evidence. The method is disabled by default.
+     * It does not mutate Agency, Scheduler, TurnEngine, ScriptEntry or transport.
+     * Execution requires a separately reviewed ScriptCommit/Reality gate.
+     */
+    proposeR2ShadowGoal(evidence: R2HostEvidence): R2GoalProposal;
+    /**
+     * An explicit trusted host observation is the only R1 promotion entrypoint.
+     * This uses the existing story lock and refuses concurrent TurnEngine work;
+     * it never synthesizes a Session, invokes the narrator, or sends messages.
+     * A prepared ScriptCommit is only a review proposal, not a delivery lease.
+     */
+    observeR1AndPrepare(request: Omit<ObservedCommitInput, 'scriptEntryId'>, evidence: ActionEvidence): Promise<ObservedCommitProposal>;
+    /** Host-controlled attention changes are never inferred from an LLM reply. */
+    transitionR1Attention(storyId: string, event: AttentionEvent, now?: Date): Promise<R1AttentionRow>;
+    /** Review queue proves only a proposal was recorded; it never claims delivery. */
+    pendingR1Review(storyId: string, participantId: string): Promise<R1ProposalReceiptRow[]>;
+    rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow>;
+    /** A read-only recovery view. Never turns uncertain platform effects into retries. */
+    uncertainR1Outbox(storyId: string): Promise<R1OutboxRow[]>;
+    /** R2 writes only durable goal proposals; Scheduler only marks review due. */
+    submitR2HostGoal(evidence: R2HostEvidence): Promise<R2GoalStateRow>;
+    /** Explicit restore hook, safe after restart; never auto-replays actions. */
+    restoreR2Review(storyId: string): Promise<R2GoalStateRow | undefined>;
+    private scheduleR2ReviewState;
     /** P2 Fix: 主动联系计数——发送动作入列后待平台确认的数量。 */
     private pendingProactiveCount;
     private cachedAutoAdvanceConfig?;
