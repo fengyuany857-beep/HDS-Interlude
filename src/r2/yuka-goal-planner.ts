@@ -95,8 +95,9 @@ export function proposeYukaGoal(input: R2HostEvidence): R2GoalProposal {
   const now = new Date(input.now)
   const window = activeAgencyWindow(input.agencyWindow, now)
   const contact = input.proposedContact
-  const contactGrounded = contact && contact.sourceEntryIds.length > 0 && input.commitments
-    .some(item => item.sourceEntryIds.some(id => contact.sourceEntryIds.includes(id)))
+  const contactSources = contact?.sourceEntryIds ?? []
+  const contactGrounded = !!contact && contactSources.length > 0 && input.commitments
+    .some(item => item.sourceEntryIds.some(id => contactSources.includes(id)))
   const contactCapacity = contact && contactGrounded && window && input.attentionMode === 'attentive'
     ? evaluateAgencyCapacity(window, contact, now, resolveAgencyConfig(), input.lastCharacterMessageAt)
     : undefined
