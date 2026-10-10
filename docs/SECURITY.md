@@ -12,6 +12,10 @@ SnowLuma 语音转写只向本地 OneBot 动作请求文本结果；HDSI 不保�
 
 ## 依赖审计
 
+2026-10-10 候选分支重新执行 `npm audit --omit=dev`：生产依赖共 11 项，`0 info / 0 low / 0 moderate / 0 high / 0 critical`。CI 现会在每次候选提交中重复此检查，并验证两次打包摘要一致及全新 Koishi 环境安装启动。
+
+以下 2026-08-23 记录保留为历史背景，不代表当前候选结果：
+
 2026-08-23 发布前执行了 `npm audit --omit=dev`：
 
 - 已通过 overrides 将 `js-yaml` 固定到 `>=4.3.1`、`nanoid` 固定到 `>=3.3.18`，修复两项兼容补丁范围内的 high 告警。
