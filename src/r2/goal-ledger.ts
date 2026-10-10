@@ -53,6 +53,9 @@ const intervals: Record<R2Goal, number> = {
   rest: 20, 'fulfill-commitment': 30, 'consider-contact': 10, 'quiet-reflection': 60,
 }
 const ms = (value: Date) => new Date(value).getTime()
+// Minato SQLite uses one writable connection and cannot nest transactions.
+// All R2 ledger instances sharing the same real driver serialize their writes.
+const driverWriteQueues = new WeakMap<object, Promise<void>>()
 
 /**
  * Durable, transaction-bound shadow proposals. Events are observations of a
@@ -103,7 +106,11 @@ export class R2GoalLedger {
       withTransaction?: (callback: (tx: typeof this.ctx.database) => Promise<T>) => Promise<T>
     }
     if (typeof db.withTransaction !== 'function') throw new Error('R2_REAL_TRANSACTION_REQUIRED')
-    return db.withTransaction(callback)
+    const key = ((this.ctx.database as unknown as { _driver?: object })._driver ?? this.ctx.database) as object
+    const preceding = driverWriteQueues.get(key) ?? Promise.resolve()
+    const current = preceding.then(() => db.withTransaction!(callback))
+    driverWriteQueues.set(key, current.then(() => undefined, () => undefined))
+    return current
   }
 
   /**
