@@ -830,11 +830,15 @@ export class InterludeService extends Service {
     return this.serial(request.storyId, async () => {
       if (this.databaseResetting || this.desktopRuntimePhase === 'paused') throw new Error('R1_RUNTIME_HALTED')
       if (this.turnEngine.hasPendingNarrative(request.storyId, () => false)) throw new Error('R1_TURN_BUSY')
-      const [scriptEntryId] = await this.r1Inbox!.observe(request.storyId, request.participantId, [request.inboxId], request.now)
-      const proposal = await prepareObservedCommit(this.ctx, { ...request, scriptEntryId })
       if (!this.r1ProposalReceipts) throw new Error('R1_REVIEW_LEDGER_DISABLED')
-      await this.r1ProposalReceipts.open(proposal, request.now)
-      return proposal
+      // Ensure the proposal schema is ready before beginning the Inbox transaction.
+      await this.r1ProposalReceipts.prepareAtomic()
+      return this.r1Inbox!.observeWith(request.storyId, request.participantId,
+        [request.inboxId], async (tx, [scriptEntryId]) => {
+          const proposal = await prepareObservedCommit(this.ctx, { ...request, scriptEntryId }, tx)
+          await this.r1ProposalReceipts!.open(proposal, request.now, tx)
+          return proposal
+        }, request.now)
     })
   }
 
