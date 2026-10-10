@@ -154,3 +154,30 @@ test('R1 stage-only candidate refuses every direct transport family without invo
   assert.equal(qzone.error, 'R1_REVIEW_REQUIRED')
   assert.equal(attempts, 0, 'no platform transport may be attempted in R1 review mode')
 })
+
+test('R2 review wake replacement respects the newer goal deadline without touching transport scheduler', () => {
+  const fixture: any = Object.create(InterludeService.prototype)
+  const pending = new Map<number, number>()
+  let seq = 0
+  fixture.ctx = {
+    setTimeout: (_fn: () => void, ms: number) => {
+      const id = ++seq
+      pending.set(id, ms)
+      return () => { pending.delete(id) }
+    },
+  }
+  fixture.r2GoalLedger = { advanceReview: async () => undefined }
+  const due = Date.now()
+  const state = (after: number) => ({
+    storyId: 'r2:review:reschedule', status: 'proposed',
+    nextReviewAt: new Date(due + after),
+  })
+  fixture.scheduleR2ReviewState(state(10_000))
+  const first = [...pending.values()][0]
+  assert.ok(first >= 9_000 && first <= 10_000)
+  fixture.scheduleR2ReviewState(state(25_000))
+  assert.equal(pending.size, 1, 'superseded proposal timer was cancelled')
+  const second = [...pending.values()][0]
+  assert.ok(second >= 24_000 && second <= 25_000)
+  assert.equal(fixture.scheduler, undefined, 'real script delivery scheduler is not touched')
+})
