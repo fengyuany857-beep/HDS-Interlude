@@ -112,7 +112,15 @@ export function proposeYukaGoal(input: R2HostEvidence): R2GoalProposal {
   const agencyGrounded = !!window && window.sourceEntryIds.length > 0
     && window.sourceEntryIds.every(id => input.verifiedSourceEntryIds.includes(id))
     && window.activityLoad === input.activityLoad
-  const contactCapacity = contact && contactGrounded && agencyGrounded && window
+  const contactReady = !!contact && contact.outcome === 'send-now'
+    && typeof contact.motive === 'string' && !!contact.motive.trim()
+    && !!contact.expiresAt && Number.isFinite(Date.parse(contact.expiresAt))
+    && Date.parse(contact.expiresAt) > now.getTime()
+    && (!contact.notBefore || Number.isFinite(Date.parse(contact.notBefore))
+      && Date.parse(contact.notBefore) <= now.getTime())
+    && (contact.willingness === undefined || Number.isFinite(contact.willingness)
+      && contact.willingness >= 0 && contact.willingness <= 1)
+  const contactCapacity = contact && contactReady && contactGrounded && agencyGrounded && window
     && input.permittedContactParticipantIds.includes(contact.participantId)
     && input.attentionMode === 'attentive'
     ? evaluateAgencyCapacity(window, contact, now, resolveAgencyConfig(), input.lastCharacterMessageAt)
