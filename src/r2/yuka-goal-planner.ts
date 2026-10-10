@@ -21,6 +21,8 @@ export interface R2HostEvidence {
   commitments: R2Commitment[]
   /** Exact ScriptEntry IDs independently resolved by the trusted host. */
   verifiedSourceEntryIds: number[]
+  /** Existing platform authorization supplies the allowed recipient set. */
+  permittedContactParticipantIds: string[]
   /** Existing HDSI Agency is the sole authority for contact capacity. */
   agencyWindow?: AgencyWindowState
   proposedContact?: ProactiveContactDraft
@@ -82,6 +84,9 @@ function validEvidence(input: R2HostEvidence): boolean {
   if (!Array.isArray(input.verifiedSourceEntryIds) || input.verifiedSourceEntryIds.length > 200
     || new Set(input.verifiedSourceEntryIds).size !== input.verifiedSourceEntryIds.length
     || input.verifiedSourceEntryIds.some(id => !Number.isSafeInteger(id) || id < 1)) return false
+  if (!Array.isArray(input.permittedContactParticipantIds)
+    || input.permittedContactParticipantIds.length > 100
+    || input.permittedContactParticipantIds.some(id => typeof id !== 'string' || !id.trim())) return false
   if (!Array.isArray(input.commitments) || input.commitments.length > 100) return false
   if (new Set(input.commitments.map(item => item.id)).size !== input.commitments.length) return false
   if (input.commitments.some(item => !item.id || !Number.isFinite(item.urgency)
@@ -104,7 +109,12 @@ export function proposeYukaGoal(input: R2HostEvidence): R2GoalProposal {
   const contactSources = contact?.sourceEntryIds ?? []
   const contactGrounded = !!contact && contactSources.length > 0
     && contactSources.every(id => input.verifiedSourceEntryIds.includes(id))
-  const contactCapacity = contact && contactGrounded && window && input.attentionMode === 'attentive'
+  const agencyGrounded = !!window && window.sourceEntryIds.length > 0
+    && window.sourceEntryIds.every(id => input.verifiedSourceEntryIds.includes(id))
+    && window.activityLoad === input.activityLoad
+  const contactCapacity = contact && contactGrounded && agencyGrounded && window
+    && input.permittedContactParticipantIds.includes(contact.participantId)
+    && input.attentionMode === 'attentive'
     ? evaluateAgencyCapacity(window, contact, now, resolveAgencyConfig(), input.lastCharacterMessageAt)
     : undefined
 
