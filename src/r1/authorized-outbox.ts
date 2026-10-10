@@ -153,7 +153,7 @@ export class R1AuthorizedOutbox {
     return this.transaction(async tx => {
       const review = (await tx.get('interlude_r1_proposal_receipt', { id: request.receiptId }))[0] as R1ProposalReceiptRow | undefined
       const source = (await tx.get('interlude_r1_inbox', { id: request.sourceInboxId }))[0] as R1InboxRow | undefined
-      if (!review || review.status !== 'pending-review'
+      if (!review
         || review.storyId !== request.storyId || review.participantId !== request.participantId
         || review.sourceInboxId !== request.sourceInboxId
         || review.commitId !== request.commitId || review.eventId !== request.eventId
@@ -166,11 +166,19 @@ export class R1AuthorizedOutbox {
       }
       const prior = (await tx.get('interlude_r1_outbox', { id: request.receiptId }))[0]
       if (prior) {
+        if (review.status !== 'authorized') throw Error('R1_OUTBOX_REVIEW_STATE_MISMATCH')
         if (prior.approvalId !== request.approvalId || prior.principalId !== request.principalId
           || prior.endpointId !== request.endpointId || prior.payloadHash !== request.payloadHash
           || prior.expiresAt.getTime() !== e) throw Error('R1_OUTBOX_APPROVAL_REPLAY_CONFLICT')
         return prior
       }
+      if (review.status !== 'pending-review') throw Error('R1_OUTBOX_REVIEW_NOT_PENDING')
+      // The review becomes authorized in the SAME transaction as the Outbox.
+      // It must no longer be visible in a pending-review queue or rejectable.
+      const transitioned = await tx.set('interlude_r1_proposal_receipt', {
+        id: review.id, revision: review.revision, status: 'pending-review',
+      }, { status: 'authorized', revision: review.revision + 1, updatedAt: at })
+      if (transitioned.matched !== 1) throw Error('R1_OUTBOX_REVIEW_CAS_CONFLICT')
       const row: R1OutboxRow = {
         id: review.id, storyId: review.storyId, participantId: review.participantId,
         sourceInboxId: review.sourceInboxId, platform: source.platform, endpointId: source.endpointId,
