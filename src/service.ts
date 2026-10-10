@@ -5,6 +5,7 @@ import type { AttentionEvent } from './r1/attention'
 import { prepareObservedCommit, type ObservedCommitInput, type ObservedCommitProposal } from './r1/observed-commit'
 import { assertHostAuthorized, type ActionEvidence } from './r1/reality'
 import { R1ProposalReceipts, registerR1ProposalReceiptTable, type R1ProposalReceiptRow } from './r1/proposal-receipts'
+import { R1AuthorizedOutbox, registerR1OutboxTables, type R1OutboxRow } from './r1/authorized-outbox'
 import { R2GoalLedger, registerR2GoalTables, type R2GoalStateRow } from './r2/goal-ledger'
 import { proposeYukaGoal, type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
@@ -741,6 +742,8 @@ export class InterludeService extends Service {
   /** Opt-in fail-closed shadow admission, never enabled by default. */
   private r1Inbox?: R1Inbox
   private r1ProposalReceipts?: R1ProposalReceipts
+  /** R1 shadow-only outbox: no host verifier and no platform sender are installed. */
+  private r1Outbox?: R1AuthorizedOutbox
   /** Candidate-only durable proposals. These are never actual performed actions. */
   private r2GoalLedger?: R2GoalLedger
   /** Distinct timer namespace: R2 reviews must never replace script delivery wakes. */
@@ -852,6 +855,12 @@ export class InterludeService extends Service {
     return this.r1ProposalReceipts.reject(id, reason)
   }
 
+  /** A read-only recovery view. Never turns uncertain platform effects into retries. */
+  async uncertainR1Outbox(storyId: string): Promise<R1OutboxRow[]> {
+    if (!this.r1Outbox) throw new Error('R1_OUTBOX_DISABLED')
+    return this.r1Outbox.uncertain(storyId)
+  }
+
   /** R2 writes only durable goal proposals; Scheduler only marks review due. */
   async submitR2HostGoal(evidence: R2HostEvidence): Promise<R2GoalStateRow> {
     if (!this.r2GoalLedger) throw new Error('R2_GOAL_LEDGER_DISABLED')
@@ -925,8 +934,10 @@ export class InterludeService extends Service {
     if (process.env.HDSI_R1_PRIVATE_INBOX === 'stage-only') {
       registerR1Tables(ctx)
       registerR1ProposalReceiptTable(ctx)
+      registerR1OutboxTables(ctx)
       this.r1Inbox = new R1Inbox(ctx)
       this.r1ProposalReceipts = new R1ProposalReceipts(ctx)
+      this.r1Outbox = new R1AuthorizedOutbox(ctx)
     }
     if (process.env.HDSI_R2_SHADOW_PLANNER === 'proposal-only') {
       registerR2GoalTables(ctx)
