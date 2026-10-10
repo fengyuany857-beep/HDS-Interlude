@@ -36,7 +36,7 @@ jobs:
           npm install --no-save --ignore-scripts --no-audit --no-fund yuka@0.7.8 @koishijs/plugin-mock@2.6.6 msw@3.0.3 fast-check@4.10.2
           node -e "for(const [n,v] of Object.entries({'yuka':'0.7.8','@koishijs/plugin-mock':'2.6.6','msw':'3.0.3','fast-check':'4.10.2'})){const p=require(n+'/package.json');if(p.version!==v)throw Error(n+' version mismatch '+p.version);console.log('VERIFIED_PACKAGE',n,v)}"
           git diff --exit-code -- package.json package-lock.json
-      - name: Verify
+      - name: Verify candidate wiring, model behavior, and release build
         run: |
           npm run typecheck
           npm test
