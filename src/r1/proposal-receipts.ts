@@ -73,7 +73,11 @@ export class R1ProposalReceipts {
     return running
   }
 
-  async open(proposal: ObservedCommitProposal, at = new Date()): Promise<R1ProposalReceiptRow[]> {
+  /** Prepare schema before parent Inbox transaction to avoid nested DDL. */
+  async prepareAtomic(): Promise<void> { await this.ensureTable() }
+
+  async open(proposal: ObservedCommitProposal, at = new Date(),
+    parentTransaction?: typeof this.ctx.database): Promise<R1ProposalReceiptRow[]> {
     if (proposal?.status !== 'proposal-only' || proposal.sideEffects !== 'none'
       || proposal.requiresHostDeliveryAuthorization !== true || proposal.requiresHostRealityGate !== true
       || !Number.isFinite(at.getTime())) throw new Error('R1_RECEIPT_UNTRUSTED_PROPOSAL')
@@ -84,7 +88,7 @@ export class R1ProposalReceipts {
       || event.deliveryMode !== 'immediate' || event.scriptBinding?.status !== 'bound'
       || event.participantId !== commit.participantId)) throw new Error('R1_RECEIPT_UNREVIEWED_EVENT')
     await this.ensureTable()
-    return this.transaction(async tx => {
+    const persist = async (tx: typeof this.ctx.database): Promise<R1ProposalReceiptRow[]> => {
       const source = (await tx.get('interlude_r1_inbox', {
         id: proposal.sourceInboxId, storyId: commit.storyId,
         participantId: commit.participantId, status: 'observed',
@@ -126,7 +130,8 @@ export class R1ProposalReceipts {
         result.push(row)
       }
       return result
-    })
+    }
+    return parentTransaction ? persist(parentTransaction) : this.transaction(persist)
   }
 
   async pending(storyId: string, participantId: string): Promise<R1ProposalReceiptRow[]> {
