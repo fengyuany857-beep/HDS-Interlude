@@ -1,0 +1,61 @@
+name: HDSI R2 | Yuka Read-Only Autonomy
+
+on:
+  push:
+    branches:
+      - hdsi-r2-yuka-autonomy-candidate-20261010
+    paths:
+      - '.github/workflows/hdsi-r2-yuka.yml'
+      - 'src/r2/**'
+      - 'test/r2-*.test.ts'
+      - 'src/agency.ts'
+      - 'src/r1/attention.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hdsi-r2-yuka-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  yuka-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify isolated R2 ancestry and no production release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "hdsi-r2-yuka-autonomy-candidate-20261010"
+          git merge-base --is-ancestor 6a3dbc72a1c1375f8e846ab9f3c25c1c44392a51 HEAD
+          git merge-base --is-ancestor 338e7096bf2df66fa0643b6518172066da379479 HEAD
+          test "$(git hash-object src/database.ts)" = "d1ceae17cb7ede3b241d533179c343acc5c7dfe6"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install existing pinned HDSI dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Stage exact Yuka 0.7.8 without modifying lockfile
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund yuka@0.7.8
+          node -e "const p=require('yuka/package.json');if(p.version!=='0.7.8')process.exit(1);console.log('REAL_YUKA',p.version)"
+          git diff --exit-code -- package.json package-lock.json
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Real Yuka + HDSI full regression
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Attest scope limits
+        run: |
+          echo "R2 Yuka real-library test is an isolated proposal-only smoke." >> "${GITHUB_STEP_SUMMARY}"
+          echo "No scheduler, persistent world events, platform delivery, production activation, or release." >> "${GITHUB_STEP_SUMMARY}"
