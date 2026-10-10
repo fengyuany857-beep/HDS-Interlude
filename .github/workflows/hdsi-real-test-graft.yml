@@ -40,3 +40,38 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+      - name: Audit and verify reproducible clean Koishi install
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --audit-level=high
+          package_file="$(npm pack --silent | tail -n 1)"
+          first_sum="$(sha256sum "$package_file" | cut -d ' ' -f 1)"
+          package_file_again="$(npm pack --silent | tail -n 1)"
+          second_sum="$(sha256sum "$package_file_again" | cut -d ' ' -f 1)"
+          test "$package_file" = "$package_file_again"
+          test "$first_sum" = "$second_sum"
+          clean_dir="$(mktemp -d)"
+          cp "$package_file" "$clean_dir/"
+          cd "$clean_dir"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "./$package_file" koishi@4.18.11 @minatojs/driver-sqlite@4.7.0 @koishijs/plugin-http@0.6.3
+          node - <<'NODE'
+          const assert = require('node:assert/strict')
+          const { App } = require('koishi')
+          const { SQLiteDriver } = require('@minatojs/driver-sqlite')
+          const httpModule = require('@koishijs/plugin-http')
+          const plugin = require('koishi-plugin-hds-interlude')
+          assert.equal(plugin.version, '1.0.1-rc36')
+          assert.equal(typeof plugin.apply, 'function')
+          ;(async () => {
+            const app = new App()
+            app.plugin(httpModule.default ?? httpModule)
+            app.plugin(SQLiteDriver, { path: ':memory:' })
+            app.plugin(plugin, {})
+            await app.start()
+            assert.ok(app.interlude)
+            await app.stop()
+            console.log('CLEAN_KOISHI_START_OK')
+          })().catch(error => { console.error(error); process.exitCode = 1 })
+          NODE
