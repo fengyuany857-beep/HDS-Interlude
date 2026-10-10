@@ -7,7 +7,7 @@ function observed(overrides: Partial<R2HostEvidence> = {}): R2HostEvidence {
   return {
     storyId: 'story:r2-isolated', now, observedAt: '2026-10-10T11:58:00.000Z',
     verifiedByHost: true, energy: 80, activityLoad: 'free',
-    attentionMode: 'attentive', commitments: [], ...overrides,
+    attentionMode: 'attentive', commitments: [], verifiedSourceEntryIds: [10, 31, 42], ...overrides,
   }
 }
 
@@ -85,8 +85,10 @@ test('R2 missing host evidence, stale clocks and invalid values fail closed', ()
     { energy: Number.NaN },
     { energy: 105 },
     { commitments: [{ id: 'c', urgency: 1, sourceEntryIds: [] }] },
+    { commitments: [{ id: 'c', urgency: 1, sourceEntryIds: [99] }] },
+    { verifiedSourceEntryIds: [10, 10] },
     { commitments: [{ id: 'c', urgency: 1, sourceEntryIds: [2] },
-      { id: 'c', urgency: 1, sourceEntryIds: [3] }] },
+      { id: 'c', urgency: 1, sourceEntryIds: [31] }] },
   ]
   for (const item of cases) {
     const result = proposeYukaGoal(observed(item))
