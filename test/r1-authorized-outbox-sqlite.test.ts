@@ -3,6 +3,7 @@ import test from 'node:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createConnection, createServer } from 'node:net'
 import { Context } from 'koishi'
 import { SQLiteDriver } from '@minatojs/driver-sqlite'
 import { registerTables } from '../src/database'
@@ -219,4 +220,45 @@ test('R1 ambiguous transport and restart in-flight recovery become UNKNOWN witho
     assert.deepEqual((await outbox.history(auth.id)).map(row => row.kind),
       ['authorized', 'attempting', 'unknown'])
   })
+})
+
+test('R1 real TCP reset after write is UNKNOWN and the exact payload is never replayed', async () => {
+  let bytes = ''
+  let connections = 0
+  const server = createServer(socket => {
+    connections++
+    socket.once('data', data => {
+      bytes += data.toString()
+      socket.destroy() // peer accepted bytes but deliberately emitted no receipt
+    })
+  })
+  await new Promise<void>((resolve, reject) => {
+    server.once('listening', resolve)
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1')
+  })
+  const address = server.address()
+  assert.ok(address && typeof address !== 'string')
+  try {
+    await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
+      const { approval } = await stageProposal(ctx, box, reviews)
+      const auth = await outbox.authorize(approval, now)
+      const dispatcher = new R1OutboxDispatcher(outbox, {
+        sendExact: attempt => new Promise((_resolve, reject) => {
+          const socket = createConnection({ host: '127.0.0.1', port: address.port }, () => {
+            socket.write(attempt.content)
+          })
+          socket.once('error', reject)
+          socket.once('close', () => reject(Error('ack-lost-after-peer-read')))
+        }),
+      })
+      assert.equal((await dispatcher.dispatch(auth.id, later(500))).status, 'unknown')
+      assert.equal(bytes, approval.payloadContent)
+      assert.equal(connections, 1)
+      await assert.rejects(() => dispatcher.dispatch(auth.id, later(1_000)), /R1_OUTBOX_NOT_CLAIMABLE/)
+      assert.equal(connections, 1)
+    })
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  }
 })
