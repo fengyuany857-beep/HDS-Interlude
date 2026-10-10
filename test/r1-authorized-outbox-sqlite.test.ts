@@ -4,6 +4,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createConnection, createServer } from 'node:net'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
 import { Context } from 'koishi'
 import { SQLiteDriver } from '@minatojs/driver-sqlite'
 import { registerTables } from '../src/database'
@@ -55,6 +58,7 @@ async function openOutbox(path: string): Promise<{ app: Context, outbox: R1Autho
 
 const now = new Date('2026-10-10T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms)
+const execFileAsync = promisify(execFile)
 const trusted: R1ApprovalVerifier = async grant =>
   grant.approvalId === 'host-approved:001' && grant.principalId === 'trusted-host'
 
@@ -299,5 +303,34 @@ test('R1 independent SQLite contexts cannot both claim one durable delivery', as
     } finally {
       await Promise.all([first.app.stop(), second.app.stop()])
     }
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('R1 separate Node processes produce exactly one durable attempt claim', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hdsi-outbox-process-race-'))
+  const path = join(dir, 'outbox.db')
+  let id = ''
+  try {
+    await withDb(path, trusted, async (ctx, box, reviews, outbox) => {
+      const { approval } = await stageProposal(ctx, box, reviews)
+      id = (await outbox.authorize(approval, now)).id
+    })
+    const worker = fileURLToPath(new URL('./fixtures/r1-outbox-claim-worker.ts', import.meta.url))
+    const startAt = Date.now() + 1200
+    const args = ['--import', 'tsx', worker, path, id, String(later(500).getTime()), String(startAt)]
+    const outputs = await Promise.all([
+      execFileAsync(process.execPath, args, { cwd: process.cwd(), timeout: 10_000 }),
+      execFileAsync(process.execPath, args, { cwd: process.cwd(), timeout: 10_000 }),
+    ])
+    const results = outputs.map(({ stdout }) => {
+      const line = stdout.split('\n').find(value => value.startsWith('R1_WORKER_RESULT '))
+      assert.ok(line, stdout)
+      return JSON.parse(line.slice('R1_WORKER_RESULT '.length)) as { status: string }
+    })
+    assert.equal(results.filter(result => result.status === 'fulfilled').length, 1)
+    assert.equal(results.filter(result => result.status === 'rejected').length, 1)
+    await withDb(path, undefined, async (_ctx, _box, _reviews, outbox) => {
+      assert.deepEqual((await outbox.history(id)).map(row => row.kind), ['authorized', 'attempting'])
+    })
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
