@@ -74,6 +74,22 @@ test('R1 candidate service: host reality gate, TurnEngine contention and exact s
     await assert.rejects(() => service.observeR1AndPrepare(input, deny), /R1_REALITY_GATE/)
     assert.equal((await inbox.unread(arrival.storyId, arrival.participantId)).length, 1)
     await service.transitionR1Attention(arrival.storyId, 'CHECK', now)
+    // The full observation+proposal chain must be atomic. Rejected binding
+    // and a failed receipt write must leave the original Inbox unread.
+    await assert.rejects(() => service.observeR1AndPrepare({
+      ...input, decision: { ...input.decision, script: '她走向窗边。' },
+    }, allow), /R1_UNBOUND_DELIVERY/)
+    assert.equal((await inbox.unread(arrival.storyId, arrival.participantId)).length, 1)
+    assert.equal((await app.database.get('interlude_script_entry', { storyId: arrival.storyId })).length, 0)
+    const receiptService = (service as any).r1ProposalReceipts as R1ProposalReceipts
+    const originalOpen = receiptService.open.bind(receiptService)
+    receiptService.open = async () => { throw new Error('TEST_RECEIPT_WRITE_FAIL') }
+    try {
+      await assert.rejects(() => service.observeR1AndPrepare(input, allow), /TEST_RECEIPT_WRITE_FAIL/)
+    } finally { receiptService.open = originalOpen }
+    assert.equal((await inbox.unread(arrival.storyId, arrival.participantId)).length, 1)
+    assert.equal((await app.database.get('interlude_script_entry', { storyId: arrival.storyId })).length, 0)
+    assert.equal((await app.database.get('interlude_r1_proposal_receipt', { storyId: arrival.storyId })).length, 0)
     const result = await service.observeR1AndPrepare(input, allow)
     assert.equal(result.status, 'proposal-only')
     assert.equal(result.sideEffects, 'none')
