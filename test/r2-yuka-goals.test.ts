@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { proposeYukaGoal, type R2HostEvidence } from '../src/r2/yuka-goal-planner'
+import { InterludeService } from '../src/service'
 
 const now = '2026-10-10T12:00:00.000Z'
 function observed(overrides: Partial<R2HostEvidence> = {}): R2HostEvidence {
@@ -96,5 +97,21 @@ test('R2 missing host evidence, stale clocks and invalid values fail closed', ()
     assert.equal(result.goal, undefined)
     assert.equal(result.sideEffects, 'none')
     assert.deepEqual(result.ranking, [])
+  }
+})
+
+test('R2 HDSI service route is disabled by default and only yields a proposal when explicitly enabled', () => {
+  const old = process.env.HDSI_R2_SHADOW_PLANNER
+  delete process.env.HDSI_R2_SHADOW_PLANNER
+  try {
+    assert.throws(() => InterludeService.prototype.proposeR2ShadowGoal(observed()), /R2_SHADOW_DISABLED/)
+    process.env.HDSI_R2_SHADOW_PLANNER = 'proposal-only'
+    const result = InterludeService.prototype.proposeR2ShadowGoal(observed())
+    assert.equal(result.status, 'proposed')
+    assert.equal(result.goal, 'quiet-reflection')
+    assert.equal(result.sideEffects, 'none')
+  } finally {
+    if (old === undefined) delete process.env.HDSI_R2_SHADOW_PLANNER
+    else process.env.HDSI_R2_SHADOW_PLANNER = old
   }
 })
