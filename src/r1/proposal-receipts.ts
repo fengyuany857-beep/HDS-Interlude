@@ -14,7 +14,7 @@ export interface R1ProposalReceiptRow {
   commitId: string
   eventId: string
   contentHash: string
-  status: 'pending-review' | 'rejected'
+  status: 'pending-review' | 'authorized' | 'rejected'
   revision: number
   createdAt: Date
   updatedAt: Date
@@ -149,6 +149,7 @@ export class R1ProposalReceipts {
       const row = (await tx.get('interlude_r1_proposal_receipt', { id }))[0]
       if (!row) throw Error('R1_RECEIPT_UNKNOWN')
       if (row.status === 'rejected') return row
+      if (row.status === 'authorized') throw Error('R1_RECEIPT_ALREADY_AUTHORIZED')
       const matched = await tx.set('interlude_r1_proposal_receipt', {
         id, revision: row.revision, status: 'pending-review',
       }, { status: 'rejected', reason, revision: row.revision + 1, updatedAt: at })
