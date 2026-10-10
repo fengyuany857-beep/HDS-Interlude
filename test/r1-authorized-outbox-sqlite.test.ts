@@ -54,7 +54,7 @@ async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalRece
     storyId: arrival.storyId, participantId: arrival.participantId,
     inboxId, scriptEntryId, frameId: 'f', burstId: 'b', now,
     decision: {
-      script: '她收到了消息，说你好。',
+      script: '她回复“你好呀”。',
       interaction: { seen: true, reply: { mode: 'immediate', content: '你好呀' } },
     },
   })
