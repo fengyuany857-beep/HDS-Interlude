@@ -2754,6 +2754,10 @@ export class InterludeService extends Service {
     groupId?: string,
     reference?: ScriptDeliveryReference,
   ) {
+    if (this.r1Inbox) {
+      if (reference) await this.recordPlatformDeliveryOutcome(story.id, reference, 'cancelled', 'r1-review-required')
+      return false
+    }
     const root = resolve(this.ctx.baseDir, this.stickerConfig.directory)
     const file = resolve(root, asset.filePath)
     const relativePath = relative(root, file)
@@ -2825,6 +2829,10 @@ export class InterludeService extends Service {
     groupId?: string,
     reference?: ScriptDeliveryReference,
   ) {
+    if (this.r1Inbox) {
+      if (reference) await this.recordPlatformDeliveryOutcome(story.id, reference, 'cancelled', 'r1-review-required')
+      return false
+    }
     let platformDelivered = false
     try {
       // OneBot 11 规范 face.id 是 int32；字符串 id 会被严格校验的实现直接
@@ -2884,6 +2892,7 @@ export class InterludeService extends Service {
       deliveredSegments: [], complete: false,
       segmentOutcomes: segments.map((segment, index) => ({ index, content: segment, status: 'failed' as const, reason })),
     })
+    if (this.r1Inbox) return failed('r1-review-required')
     try {
       await this.ensureEndpointRegistry()
     } catch (error) {
@@ -7368,6 +7377,7 @@ export class InterludeService extends Service {
    * 结果不明按已发生保守计入配额，且绝不自动重试非幂等动作。
    */
   async qzoneExecute(story: InterludeStory, kind: QzoneActionKind, input: { content?: string, tid?: string, targetUin?: string, ugcRight?: number }, preferSelfId?: string): Promise<{ ok: boolean, tid?: string, error?: string }> {
+    if (this.r1Inbox) return { ok: false, error: 'R1_REVIEW_REQUIRED' }
     if (!this.qzoneRuntime.enabled) return { ok: false, error: 'QQ 空间通道未启用（Console → 扩展 → QQ 空间）。' }
     // M1a（路径 7）+ P1-4：qzone 账号选择——显式指定 preferSelfId 时按 accountKey
     // 精确匹配本故事的角色端点，找不到直接失败（绝不自动切到其他端点）；
