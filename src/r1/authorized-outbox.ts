@@ -22,6 +22,7 @@ export interface R1OutboxRow {
   payloadHash: string
   approvalId: string
   principalId: string
+  credentialId: string
   status: R1OutboxStatus
   revision: number
   approvedAt: Date
@@ -57,7 +58,7 @@ export function registerR1OutboxTables(ctx: Context): void {
     id: 'string(64)', storyId: 'string(255)', participantId: 'string(255)',
     sourceInboxId: 'string(64)', platform: 'string(63)', endpointId: 'string(127)',
     commitId: 'string(100)', eventId: 'string(120)', payloadHash: 'string(64)',
-    approvalId: 'string(128)', principalId: 'string(128)', status: 'string(20)',
+    approvalId: 'string(128)', principalId: 'string(128)', credentialId: 'string(128)', status: 'string(20)',
     revision: 'unsigned', approvedAt: 'timestamp', expiresAt: 'timestamp',
     updatedAt: 'timestamp', attemptId: 'string(64)', attemptAt: 'timestamp',
     completedAt: 'timestamp', adapterMessageId: 'string(255)', reason: 'string(255)',
@@ -83,6 +84,8 @@ export interface R1ApprovalRequest {
   payloadHash: string
   approvalId: string
   principalId: string
+  credentialId: string
+  signature: string
   actionClass: 'r1-private-text'
   approvedAt: Date
   expiresAt: Date
@@ -143,6 +146,7 @@ export class R1AuthorizedOutbox {
       || e! <= a! || e! - a! > 60_000 || a! > n || e! <= n
       || request.actionClass !== 'r1-private-text'
       || !request.receiptId || !request.principalId || !request.approvalId
+      || !request.credentialId || !request.signature
       || !request.storyId || !request.participantId || !request.endpointId
       || !request.platform || !request.payloadHash || !request.sourceInboxId) {
       throw Error('R1_OUTBOX_INVALID_APPROVAL')
@@ -168,6 +172,7 @@ export class R1AuthorizedOutbox {
       if (prior) {
         if (review.status !== 'authorized') throw Error('R1_OUTBOX_REVIEW_STATE_MISMATCH')
         if (prior.approvalId !== request.approvalId || prior.principalId !== request.principalId
+          || prior.credentialId !== request.credentialId
           || prior.endpointId !== request.endpointId || prior.payloadHash !== request.payloadHash
           || prior.expiresAt.getTime() !== e) throw Error('R1_OUTBOX_APPROVAL_REPLAY_CONFLICT')
         return prior
@@ -184,6 +189,7 @@ export class R1AuthorizedOutbox {
         sourceInboxId: review.sourceInboxId, platform: source.platform, endpointId: source.endpointId,
         commitId: review.commitId, eventId: review.eventId, payloadHash: review.contentHash,
         approvalId: request.approvalId, principalId: request.principalId,
+        credentialId: request.credentialId,
         status: 'authorized', revision: 1, approvedAt: request.approvedAt,
         expiresAt: request.expiresAt, updatedAt: at,
       }

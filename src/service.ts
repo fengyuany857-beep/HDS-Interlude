@@ -5,7 +5,8 @@ import type { AttentionEvent } from './r1/attention'
 import { prepareObservedCommit, type ObservedCommitInput, type ObservedCommitProposal } from './r1/observed-commit'
 import { assertHostAuthorized, type ActionEvidence } from './r1/reality'
 import { R1ProposalReceipts, registerR1ProposalReceiptTable, type R1ProposalReceiptRow } from './r1/proposal-receipts'
-import { R1AuthorizedOutbox, registerR1OutboxTables, type R1OutboxRow } from './r1/authorized-outbox'
+import { R1AuthorizedOutbox, registerR1OutboxTables, type R1ApprovalRequest, type R1OutboxRow } from './r1/authorized-outbox'
+import { createR1HostApprovalVerifier } from './r1/host-approval'
 import { R2GoalLedger, registerR2GoalTables, type R2GoalStateRow } from './r2/goal-ledger'
 import { proposeYukaGoal, type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
@@ -859,6 +860,12 @@ export class InterludeService extends Service {
     return this.r1ProposalReceipts.reject(id, reason)
   }
 
+  /** Authenticate an exact host-signed approval and atomically create its durable Outbox row. */
+  async authorizeR1Proposal(request: R1ApprovalRequest, now = new Date()): Promise<R1OutboxRow> {
+    if (!this.r1Outbox) throw new Error('R1_OUTBOX_DISABLED')
+    return this.r1Outbox.authorize(request, now)
+  }
+
   /** A read-only recovery view. Never turns uncertain platform effects into retries. */
   async uncertainR1Outbox(storyId: string): Promise<R1OutboxRow[]> {
     if (!this.r1Outbox) throw new Error('R1_OUTBOX_DISABLED')
@@ -935,13 +942,21 @@ export class InterludeService extends Service {
     super(ctx, 'interlude')
     this.serviceLogger = ctx.logger('hds-interlude')
     registerTables(ctx)
-    if (process.env.HDSI_R1_PRIVATE_INBOX === 'stage-only') {
+    const r1Mode = process.env.HDSI_R1_PRIVATE_INBOX
+    if (r1Mode === 'stage-only' || r1Mode === 'review-authorized') {
       registerR1Tables(ctx)
       registerR1ProposalReceiptTable(ctx)
       registerR1OutboxTables(ctx)
       this.r1Inbox = new R1Inbox(ctx)
       this.r1ProposalReceipts = new R1ProposalReceipts(ctx)
-      this.r1Outbox = new R1AuthorizedOutbox(ctx)
+      const verifier = r1Mode === 'review-authorized'
+        ? createR1HostApprovalVerifier([{
+          credentialId: process.env.HDSI_R1_HOST_CREDENTIAL_ID ?? '',
+          principalId: process.env.HDSI_R1_HOST_PRINCIPAL_ID ?? '',
+          publicKeyDerBase64: process.env.HDSI_R1_HOST_PUBLIC_KEY_DER_BASE64 ?? '',
+        }])
+        : undefined
+      this.r1Outbox = new R1AuthorizedOutbox(ctx, verifier)
     }
     if (process.env.HDSI_R2_SHADOW_PLANNER === 'proposal-only') {
       registerR2GoalTables(ctx)

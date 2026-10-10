@@ -17,6 +17,7 @@ export interface R1OutboxRow {
     payloadHash: string;
     approvalId: string;
     principalId: string;
+    credentialId: string;
     status: R1OutboxStatus;
     revision: number;
     approvedAt: Date;
@@ -56,6 +57,8 @@ export interface R1ApprovalRequest {
     payloadHash: string;
     approvalId: string;
     principalId: string;
+    credentialId: string;
+    signature: string;
     actionClass: 'r1-private-text';
     approvedAt: Date;
     expiresAt: Date;

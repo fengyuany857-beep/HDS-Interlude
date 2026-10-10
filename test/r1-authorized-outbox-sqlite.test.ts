@@ -65,7 +65,8 @@ async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalRece
     sourceInboxId: receipt.sourceInboxId, platform: arrival.platform,
     endpointId: arrival.endpointId, commitId: receipt.commitId, eventId: receipt.eventId,
     payloadHash: receipt.contentHash, approvalId: 'host-approved:001',
-    principalId: 'trusted-host', actionClass: 'r1-private-text',
+    principalId: 'trusted-host', credentialId: 'test-key', signature: 'test-signature',
+    actionClass: 'r1-private-text',
     approvedAt: now, expiresAt: later(30_000),
   }
   return { receipt, approval }

@@ -4,7 +4,7 @@ import type { AttentionEvent } from './r1/attention';
 import { type ObservedCommitInput, type ObservedCommitProposal } from './r1/observed-commit';
 import { type ActionEvidence } from './r1/reality';
 import { type R1ProposalReceiptRow } from './r1/proposal-receipts';
-import { type R1OutboxRow } from './r1/authorized-outbox';
+import { type R1ApprovalRequest, type R1OutboxRow } from './r1/authorized-outbox';
 import { type R2GoalStateRow } from './r2/goal-ledger';
 import { type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner';
 import { type QzoneActionKind } from './qzone';
@@ -533,6 +533,8 @@ export declare class InterludeService extends Service {
     /** Review queue proves only a proposal was recorded; it never claims delivery. */
     pendingR1Review(storyId: string, participantId: string): Promise<R1ProposalReceiptRow[]>;
     rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow>;
+    /** Authenticate an exact host-signed approval and atomically create its durable Outbox row. */
+    authorizeR1Proposal(request: R1ApprovalRequest, now?: Date): Promise<R1OutboxRow>;
     /** A read-only recovery view. Never turns uncertain platform effects into retries. */
     uncertainR1Outbox(storyId: string): Promise<R1OutboxRow[]>;
     /** R2 writes only durable goal proposals; Scheduler only marks review due. */
