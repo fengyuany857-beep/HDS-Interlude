@@ -1052,6 +1052,7 @@ export class InterludeService extends Service {
     this.desktopRuntimePhase = phase
     if (phase === 'paused') {
       this.scheduler.cancelWakes()
+      this.r2ReviewScheduler?.cancelWakes()
       for (const turn of this.turnEngine.turns.values()) {
         if (turn.timer) turn.timer()
         turn.timer = undefined
