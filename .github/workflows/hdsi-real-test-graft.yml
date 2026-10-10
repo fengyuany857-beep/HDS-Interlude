@@ -75,3 +75,11 @@ jobs:
             console.log('CLEAN_KOISHI_START_OK')
           })().catch(error => { console.error(error); process.exitCode = 1 })
           NODE
+      - name: Bounded R1 fault and cross-process soak (60 cycles)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for iteration in $(seq 1 60); do
+            echo "R1_SOAK_CYCLE=$iteration"
+            node --import tsx --test --test-name-pattern='real TCP reset|separate Node processes' test/r1-authorized-outbox-sqlite.test.ts
+          done
