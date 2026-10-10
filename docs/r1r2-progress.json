@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-10T20:27:00Z",
+  "updatedAt": "2026-10-10T20:31:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
-  "evaluatedHead": "e97e60ecad514d011004ac96ada11d110db9f1db",
-  "releaseState": "IN_PROGRESS",
+  "evaluatedHead": "12b9b5f59a20df8cfd20d99c862cb2df86393aef",
+  "releaseState": "BLOCKED_P1",
   "phases": {
     "A_satori_mock_e2e": "complete",
     "B_trusted_host_authorization": "complete",
     "C_outbox_receipt_recovery": "complete",
-    "D_fault_restart_concurrency_soak": "partial",
+    "D_fault_restart_concurrency_soak": "complete",
     "E_release_audit": "partial"
   },
   "verified": {
     "local": {
-      "tests": 578,
-      "passed": 574,
+      "tests": 579,
+      "passed": 575,
       "failed": 0,
       "skipped": 4,
       "typecheck": "passed",
@@ -26,7 +26,10 @@
       { "head": "ccca4170bfaf230a543d4b9d8f30aab8376a8c98", "run": 38082674574, "result": "success" },
       { "head": "2b2ed56c2af76d40c69c06921b7e74afb867e1b8", "run": 38082787418, "result": "success" },
       { "head": "2f7c1be008458822794e55bf15340a2093e18a46", "run": 38082978230, "result": "success" },
-      { "head": "e97e60ecad514d011004ac96ada11d110db9f1db", "run": 38083358336, "result": "in_progress" }
+      { "head": "e97e60ecad514d011004ac96ada11d110db9f1db", "run": 38083358336, "result": "success" },
+      { "head": "20f2bd108262cc133d5999511eba1a551109fc00", "run": 38083568850, "result": "success" },
+      { "head": "ecd9f22d3bf0e0f0a59ec1cf80e6e1d38f3569e8", "run": 38083698523, "result": "success" },
+      { "head": "12b9b5f59a20df8cfd20d99c862cb2df86393aef", "run": 38083855934, "result": "success" }
     ]
   },
   "evidence": [
@@ -34,15 +37,14 @@
     "Ed25519 host approval binds principal, credential, action, exact endpoint, payload, source, commit, event and validity window.",
     "Outbox persists exact content, claims once, records accepted/rejected/unknown, and never reclaims UNKNOWN.",
     "Real TCP peer read followed by acknowledgement loss produces UNKNOWN and no replay.",
-    "Independent SQLite connections contend safely after BEGIN IMMEDIATE; only one claim can succeed."
+    "Independent SQLite connections and separate Node processes contend safely after BEGIN IMMEDIATE; only one claim can succeed."
     ,"Disabled-by-default service dispatch sends exact authorized content through published OneBot and Satori adapters and persists their adapter message IDs."
   ],
   "releaseBlockers": [
-    { "severity": "P1", "id": "PROCESS_RACE", "detail": "Independent SQLite connections are verified, but separate OS process worker contention is not yet verified." },
-    { "severity": "P1", "id": "SOAK", "detail": "Bounded long-duration restart/dispatch soak has not run." },
     { "severity": "P1", "id": "MODEL_BEHAVIOR", "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened." },
     { "severity": "P1", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; no formal SARIF report exists yet." },
-    { "severity": "P1", "id": "RELEASE", "detail": "Clean Koishi install, package reproducibility, compatibility/license attribution, final version metadata and RC evidence bundle remain." }
+    { "severity": "P1", "id": "RELEASE", "detail": "Final stable version metadata, CHANGELOG/RC evidence freeze and explicit public release authorization remain." },
+    { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "CI passed 60 consecutive TCP-loss/cross-process cycles; multi-hour or production observation remains intentionally unclaimed." }
   ],
-  "next": "Run separate-process race and bounded restart/dispatch soak, then finish clean-package, security, compatibility and model-behavior release gates."
+  "next": "Configure and run the protected production-model acceptance workflow; obtain a formal security scan artifact if tooling becomes available; then freeze stable-version RC metadata and request final release authorization."
 }

@@ -48,3 +48,10 @@ Goal/Scope: candidate-only R1/R2 compressed build continuation, no additional pr
 Action: source/test/workflow edits on isolated GitHub candidate; no main/production/real bot actions.
 Verification: GitHub Actions Node 22 real Koishi SQLite and loopback OneBot Mock transport + static code inspection; same-executor CI, no independent reproduction.
 Convergence: **PARTIAL**, CI-accepted candidate milestone, not production acceptance.
+
+## Continuation checkpoint
+
+Subsequent implementation and current machine-readable blockers are tracked in
+`docs/r1r2-progress.json`. This historical handoff remains the accepted
+`1acb650d471c47b8fbbf0cd4c76b04eb1ed74dd7` baseline and must not be read as
+the current candidate status.

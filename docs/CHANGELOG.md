@@ -1,3 +1,11 @@
+## R1/R2 mainline candidate（2026-10-10，未发布）
+
+- R1：持久 Inbox、注意力状态、原子 ScriptCommit review、Ed25519 宿主授权、持久 Outbox、OneBot/Satori 官方适配器 loopback 投递、回执与 UNKNOWN 隔离已接通；默认关闭，未连接真实平台。
+- R1 恢复与并发：TCP 写后丢确认、冷重启隔离、独立 SQLite 连接和双 Node 进程 claim 竞争通过；CI 连续执行 60 轮故障/竞争 soak。
+- R2：保留既有 Yuka 目标选择、持久 Goal Ledger 与独立 Scheduler，仍为 proposal/review-only，不把计划冒充已执行行动。
+- 发布工程：测试依赖写入 lockfile；生产依赖审计为 0 漏洞；双次 npm pack 摘要一致；tarball 在干净 Koishi 4.18.11 + SQLite 4.7.0 环境安装启动通过；补充 AGPL/上游归属 NOTICE 与实际源码元数据。
+- 尚未发布：四项真实生产模型行为测试等待受保护凭据；正式安全扫描产物、稳定版本冻结、合并/tag/GitHub Release 仍未完成。
+
 ## 1.0.1-rc36（2026-10-04，发布候选）
 
 - **小模型换行分句开关**：新增 `runtime.convertNewlineToSeparator`（默认关闭）——模型没有按合约输出 `<sep/>` 而是用换行分条时，把换行运行自动视作气泡边界再发送；内容已含显式分隔符时不转换，拆条关闭时无效。Gemma 等小模型建议开启。
