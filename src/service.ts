@@ -7,6 +7,7 @@ import { assertHostAuthorized, type ActionEvidence } from './r1/reality'
 import { R1ProposalReceipts, registerR1ProposalReceiptTable, type R1ProposalReceiptRow } from './r1/proposal-receipts'
 import { R1AuthorizedOutbox, registerR1OutboxTables, type R1ApprovalRequest, type R1OutboxRow } from './r1/authorized-outbox'
 import { createR1HostApprovalVerifier } from './r1/host-approval'
+import { R1OutboxDispatcher } from './r1/outbox-dispatcher'
 import { R2GoalLedger, registerR2GoalTables, type R2GoalStateRow } from './r2/goal-ledger'
 import { proposeYukaGoal, type R2HostEvidence, type R2GoalProposal } from './r2/yuka-goal-planner'
 import { appendProactiveContact, countProactiveContactsInWindow } from './story-state'
@@ -864,6 +865,35 @@ export class InterludeService extends Service {
   async authorizeR1Proposal(request: R1ApprovalRequest, now = new Date()): Promise<R1OutboxRow> {
     if (!this.r1Outbox) throw new Error('R1_OUTBOX_DISABLED')
     return this.r1Outbox.authorize(request, now)
+  }
+
+  /** Explicit host dispatch; disabled unless separately enabled after signed review. */
+  async dispatchR1Authorized(id: string, now = new Date()): Promise<R1OutboxRow> {
+    if (!this.r1Outbox) throw new Error('R1_OUTBOX_DISABLED')
+    if (process.env.HDSI_R1_DISPATCH_MODE !== 'authorized') throw new Error('R1_DISPATCH_DISABLED')
+    return new R1OutboxDispatcher(this.r1Outbox, {
+      sendExact: async attempt => {
+        const parts = attempt.endpointId.split(':')
+        if (parts.length !== 3 || parts.some(part => !part)) throw new Error('R1_ENDPOINT_INVALID')
+        const [platform, selfId, userId] = parts
+        if (platform !== attempt.platform) throw new Error('R1_ENDPOINT_PLATFORM_MISMATCH')
+        const bot = this.ctx.bots.find(candidate => candidate.platform === platform
+          && String(candidate.selfId) === selfId)
+        if (!bot) return { status: 'rejected', reason: 'exact-bot-not-found' }
+        const receipts = isOneBotPlatform(platform)
+          ? await bot.sendMessage(`private:${userId}`, attempt.content)
+          : await bot.sendPrivateMessage(userId, attempt.content)
+        const adapterMessageId = Array.isArray(receipts) ? String(receipts[0] ?? '') : ''
+        if (!adapterMessageId) throw new Error('adapter-returned-no-message-id')
+        return { status: 'accepted', adapterMessageId }
+      },
+    }).dispatch(id, now)
+  }
+
+  /** Host startup hook: isolate old in-flight rows before enabling any dispatch worker. */
+  async recoverR1Outbox(staleBefore: Date, now = new Date()): Promise<R1OutboxRow[]> {
+    if (!this.r1Outbox) throw new Error('R1_OUTBOX_DISABLED')
+    return this.r1Outbox.quarantineAttempting(staleBefore, now)
   }
 
   /** A read-only recovery view. Never turns uncertain platform effects into retries. */

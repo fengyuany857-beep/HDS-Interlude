@@ -535,6 +535,10 @@ export declare class InterludeService extends Service {
     rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow>;
     /** Authenticate an exact host-signed approval and atomically create its durable Outbox row. */
     authorizeR1Proposal(request: R1ApprovalRequest, now?: Date): Promise<R1OutboxRow>;
+    /** Explicit host dispatch; disabled unless separately enabled after signed review. */
+    dispatchR1Authorized(id: string, now?: Date): Promise<R1OutboxRow>;
+    /** Host startup hook: isolate old in-flight rows before enabling any dispatch worker. */
+    recoverR1Outbox(staleBefore: Date, now?: Date): Promise<R1OutboxRow[]>;
     /** A read-only recovery view. Never turns uncertain platform effects into retries. */
     uncertainR1Outbox(storyId: string): Promise<R1OutboxRow[]>;
     /** R2 writes only durable goal proposals; Scheduler only marks review due. */

@@ -4,6 +4,8 @@ import { App } from 'koishi'
 import { SQLiteDriver } from '@minatojs/driver-sqlite'
 import { registerTables } from '../src/database'
 import { R1Inbox, registerR1Tables, stableInboxId, type R1Arrival } from '../src/r1/inbox'
+import { InterludeService } from '../src/service'
+import { R1AuthorizedOutbox, registerR1OutboxTables } from '../src/r1/authorized-outbox'
 
 /**
  * Real Koishi OneBot adapter, actual loopback TCP + WebSocket and Minato SQLite.
@@ -104,6 +106,81 @@ test('R1 loopback OneBot V11 WS -> actual Koishi adapter -> durable private Inbo
     assert.equal((await app.database.get('interlude_script_entry', { storyId: 'wire:r1-story' })).length, 0)
     assert.equal(stableInboxId(staged[0]).length, 64)
   } finally {
+    await app.stop()
+    await new Promise<void>((resolve, reject) => server.close((error: Error | undefined) => error ? reject(error) : resolve()))
+  }
+})
+
+test('R1 durable authorized row -> service dispatcher -> actual OneBot private write -> accepted receipt', async () => {
+  const { WebSocketServer } = require('ws') as { WebSocketServer: any }
+  const adapterModule = require('koishi-plugin-adapter-onebot') as any
+  const httpModule = require('@koishijs/plugin-http') as any
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 })
+  await new Promise<void>((resolve, reject) => {
+    server.once('listening', resolve)
+    server.once('error', reject)
+  })
+  const address = server.address()
+  assert.ok(address && typeof address !== 'string')
+  const writes: Array<{ action: string, params: Record<string, unknown> }> = []
+  let loginSeen!: () => void
+  const loginReady = new Promise<void>(resolve => { loginSeen = resolve })
+  server.on('connection', (socket: any) => {
+    socket.on('message', (buf: Buffer) => {
+      const request = JSON.parse(buf.toString()) as { action: string, params: Record<string, unknown>, echo: number }
+      if (request.action === 'send_private_msg') writes.push(request)
+      const data = request.action === 'get_login_info'
+        ? { user_id: 123456, nickname: 'WireOnly' }
+        : request.action === 'send_private_msg' ? { message_id: 9001 } : {}
+      socket.send(JSON.stringify({ status: 'ok', retcode: 0, data, echo: request.echo }))
+      if (request.action === 'get_login_info') loginSeen()
+    })
+  })
+
+  const app = new App()
+  app.plugin(httpModule.default ?? httpModule)
+  app.plugin(SQLiteDriver, { path: ':memory:' })
+  registerTables(app)
+  registerR1OutboxTables(app)
+  app.plugin(adapterModule.default ?? adapterModule, {
+    protocol: 'ws', selfId: '123456', endpoint: `ws://127.0.0.1:${address.port}`, responseTimeout: 2000,
+  })
+  const oldMode = process.env.HDSI_R1_DISPATCH_MODE
+  try {
+    await app.start()
+    const deadline = Date.now() + 3000
+    while (!app.bots.some(bot => bot.platform === 'onebot' && String(bot.selfId) === '123456')) {
+      if (Date.now() > deadline) throw Error('R1_ONEBOT_LOGIN_TIMEOUT')
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    await loginReady
+    await new Promise(resolve => setTimeout(resolve, 30))
+    const outbox = new R1AuthorizedOutbox(app)
+    const now = new Date()
+    await app.database.create('interlude_r1_outbox', {
+      id: 'o'.repeat(64), storyId: 'wire:dispatch', participantId: 'wire:alice',
+      sourceInboxId: 'i'.repeat(64), platform: 'onebot', endpointId: 'onebot:123456:2001',
+      commitId: 'commit', eventId: 'event', payloadHash: 'p'.repeat(64),
+      payloadContent: 'exact authorized text', approvalId: 'approval', principalId: 'host',
+      credentialId: 'key', status: 'authorized', revision: 1,
+      approvedAt: now, expiresAt: new Date(now.getTime() + 30_000), updatedAt: now,
+    })
+    const fixture: any = Object.create(InterludeService.prototype)
+    fixture.ctx = app
+    fixture.r1Outbox = outbox
+    process.env.HDSI_R1_DISPATCH_MODE = 'authorized'
+    const result = await (fixture as InterludeService).dispatchR1Authorized('o'.repeat(64), now)
+    assert.equal(result.status, 'accepted', result.reason)
+    assert.equal(result.adapterMessageId, '9001')
+    assert.equal(writes.length, 1)
+    assert.equal(String(writes[0].params.user_id), '2001')
+    assert.deepEqual(writes[0].params.message, [{ type: 'text', data: { text: 'exact authorized text' } }])
+    await assert.rejects(() => (fixture as InterludeService).dispatchR1Authorized('o'.repeat(64), now),
+      /R1_OUTBOX_NOT_CLAIMABLE/)
+    assert.equal(writes.length, 1)
+  } finally {
+    if (oldMode === undefined) delete process.env.HDSI_R1_DISPATCH_MODE
+    else process.env.HDSI_R1_DISPATCH_MODE = oldMode
     await app.stop()
     await new Promise<void>((resolve, reject) => server.close((error: Error | undefined) => error ? reject(error) : resolve()))
   }
