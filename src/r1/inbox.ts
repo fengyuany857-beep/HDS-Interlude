@@ -138,9 +138,21 @@ export class R1Inbox {
    */
   async observe(storyId: string, participantId: string, ids: string[], now = new Date()): Promise<number[]> {
     if (!ids.length) return []
+    return this.observeWith(storyId, participantId, ids, async (_tx, promoted) => promoted, now)
+  }
+
+  /**
+   * Host-only atomic extension: promotion and dependent review receipt must
+   * commit in the SAME transaction. Callback failures rollback both.
+   * Never call a narrator or a transport from the callback.
+   */
+  async observeWith<T>(storyId: string, participantId: string, ids: string[],
+    afterPromote: (tx: typeof this.ctx.database, entryIds: number[]) => Promise<T>,
+    now = new Date()): Promise<T> {
+    if (!ids.length) throw Error('R1_INVALID_BATCH')
     if (ids.length > 100 || new Set(ids).size !== ids.length) throw new Error('R1_INVALID_BATCH')
     const database = this.ctx.database as typeof this.ctx.database & {
-      withTransaction?: (callback: (tx: typeof this.ctx.database) => Promise<number[]>) => Promise<number[]>
+      withTransaction?: (callback: (tx: typeof this.ctx.database) => Promise<T>) => Promise<T>
     }
     if (typeof database.withTransaction !== 'function') throw new Error('R1_REAL_TRANSACTION_REQUIRED')
     const state = await this.attention(storyId)
@@ -179,7 +191,7 @@ export class R1Inbox {
         if (updated.matched !== 1) throw new Error('R1_PROMOTION_CAS_FAILED')
         promoted.push(entry.id)
       }
-      return promoted
+      return afterPromote(tx, promoted)
     })
   }
 }
