@@ -1,0 +1,33 @@
+name: HDSI Real Test Graft
+
+on:
+  push:
+    branches:
+      - hdsi-r1r2-real-test-graft-20261010
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.15.0'
+          cache: npm
+      - name: Install
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --ignore-scripts --no-audit --no-fund yuka@0.7.8 @koishijs/plugin-mock@2.6.6 msw@3.0.3 fast-check@4.10.2
+          git diff --exit-code -- package.json package-lock.json
+      - name: Verify
+        run: |
+          npm run typecheck
+          npm test
+          npm run build
