@@ -19,6 +19,8 @@ export interface R2HostEvidence {
   activityLoad: 'free' | 'occupied' | 'overloaded'
   attentionMode: AttentionMode
   commitments: R2Commitment[]
+  /** Exact ScriptEntry IDs independently resolved by the trusted host. */
+  verifiedSourceEntryIds: number[]
   /** Existing HDSI Agency is the sole authority for contact capacity. */
   agencyWindow?: AgencyWindowState
   proposedContact?: ProactiveContactDraft
@@ -77,11 +79,15 @@ function validEvidence(input: R2HostEvidence): boolean {
   if (!Number.isFinite(input.energy) || input.energy < 0 || input.energy > 100) return false
   if (!['free', 'occupied', 'overloaded'].includes(input.activityLoad)) return false
   if (!['attentive', 'ringOnly', 'dnd', 'asleep'].includes(input.attentionMode)) return false
+  if (!Array.isArray(input.verifiedSourceEntryIds) || input.verifiedSourceEntryIds.length > 200
+    || new Set(input.verifiedSourceEntryIds).size !== input.verifiedSourceEntryIds.length
+    || input.verifiedSourceEntryIds.some(id => !Number.isSafeInteger(id) || id < 1)) return false
   if (!Array.isArray(input.commitments) || input.commitments.length > 100) return false
   if (new Set(input.commitments.map(item => item.id)).size !== input.commitments.length) return false
   if (input.commitments.some(item => !item.id || !Number.isFinite(item.urgency)
     || item.urgency < 0 || item.urgency > 1 || !Array.isArray(item.sourceEntryIds)
-    || !item.sourceEntryIds.length || item.sourceEntryIds.some(id => !Number.isSafeInteger(id) || id < 1))) return false
+    || !item.sourceEntryIds.length || item.sourceEntryIds.some(id => !Number.isSafeInteger(id)
+      || id < 1 || !input.verifiedSourceEntryIds.includes(id)))) return false
   return true
 }
 
@@ -96,8 +102,8 @@ export function proposeYukaGoal(input: R2HostEvidence): R2GoalProposal {
   const window = activeAgencyWindow(input.agencyWindow, now)
   const contact = input.proposedContact
   const contactSources = contact?.sourceEntryIds ?? []
-  const contactGrounded = !!contact && contactSources.length > 0 && input.commitments
-    .some(item => item.sourceEntryIds.some(id => contactSources.includes(id)))
+  const contactGrounded = !!contact && contactSources.length > 0
+    && contactSources.every(id => input.verifiedSourceEntryIds.includes(id))
   const contactCapacity = contact && contactGrounded && window && input.attentionMode === 'attentive'
     ? evaluateAgencyCapacity(window, contact, now, resolveAgencyConfig(), input.lastCharacterMessageAt)
     : undefined
