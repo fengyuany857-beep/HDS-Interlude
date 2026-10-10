@@ -75,6 +75,15 @@ test('R2 contact consideration requires existing Agency capacity and ScriptEntry
   assert.equal(proposeYukaGoal(observed({ ...parent,
     agencyWindow: { ...window, sourceEntryIds: [99] },
   })).goal, 'fulfill-commitment')
+  assert.equal(proposeYukaGoal(observed({ ...parent,
+    proposedContact: { ...proposedContact, outcome: 'let-go' },
+  })).goal, 'fulfill-commitment')
+  assert.equal(proposeYukaGoal(observed({ ...parent,
+    proposedContact: { ...proposedContact, notBefore: '2026-10-10T12:30:00.000Z' },
+  })).goal, 'fulfill-commitment')
+  assert.equal(proposeYukaGoal(observed({ ...parent,
+    proposedContact: { ...proposedContact, expiresAt: '2026-10-10T11:00:00.000Z' },
+  })).goal, 'fulfill-commitment')
 })
 
 test('R2 proposals are deterministic across simulated process restart', () => {
