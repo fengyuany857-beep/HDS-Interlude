@@ -25,6 +25,10 @@ test('R1 loopback OneBot V11 WS -> actual Koishi adapter -> durable private Inbo
   assert.ok(address && typeof address !== 'string')
   const endpoint = 'ws://127.0.0.1:' + address.port
   const app = new App()
+  // Koishi's real OneBot adapter declares ctx.http as a required service.
+  // An empty App never auto-installs it; without this the adapter stays dormant.
+  const httpModule = require('@koishijs/plugin-http') as any
+  app.plugin(httpModule.default ?? httpModule)
   app.plugin(SQLiteDriver, { path: ':memory:' })
   registerTables(app)
   registerR1Tables(app)
@@ -88,7 +92,7 @@ test('R1 loopback OneBot V11 WS -> actual Koishi adapter -> durable private Inbo
     await app.start()
     await Promise.race([
       inbound,
-      new Promise<never>((_, reject) => setTimeout(() => reject(Error('R1_WIRE_INBOUND_TIMEOUT')), 6000)),
+      new Promise<never>((_, reject) => setTimeout(() => reject(Error('R1_WIRE_INBOUND_TIMEOUT actions=' + JSON.stringify(networkActions) + ' staged=' + staged.length)), 6000)),
     ])
     assert.equal(rawMessages.length, 1, 'real OneBot frame must have been sent on loopback WS')
     assert.ok(networkActions.includes('get_login_info'), 'real Koishi adapter must initialize over WS')
