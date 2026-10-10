@@ -877,6 +877,9 @@ export class InterludeService extends Service {
       onWakeError: error => this.reportStandalone('warn', 'R2 review scheduler error: %s', error),
       onTaskError: error => this.reportStandalone('warn', 'R2 review task error: %s', error),
     })
+    // A newer proposal may move its review later. Keep-earliest semantics are
+    // correct for script intents, but would silently drop the newer R2 review.
+    this.r2ReviewScheduler.cancelWake(state.storyId)
     this.r2ReviewScheduler.scheduleWake(state.storyId, new Date(state.nextReviewAt), async () => {
       if (this.databaseResetting || this.desktopRuntimePhase === 'paused') return 'busy' as const
       await this.r2GoalLedger!.advanceReview(state.storyId, new Date())
