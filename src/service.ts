@@ -741,6 +741,8 @@ export class InterludeService extends Service {
   private r1Inbox?: R1Inbox
   /** Candidate-only durable proposals. These are never actual performed actions. */
   private r2GoalLedger?: R2GoalLedger
+  /** Distinct timer namespace: R2 reviews must never replace script delivery wakes. */
+  private r2ReviewScheduler?: Scheduler
   private scheduler!: Scheduler     // P1: 到期唤醒/独占任务/指纹冷却已抽出至 scheduler.ts
   /** 端点注册表内存缓存（M1a）：行来自 interlude_endpoint；状态为进程内三维时效。 */
   private endpointRows: EndpointRow[] = []
@@ -852,7 +854,14 @@ export class InterludeService extends Service {
 
   private scheduleR2ReviewState(state: R2GoalStateRow): void {
     if (!this.r2GoalLedger || state.status !== 'proposed') return
-    this.scheduler.scheduleWake(state.storyId, new Date(state.nextReviewAt), async () => {
+    this.r2ReviewScheduler ??= createScheduler({
+      setTimeout: (fn, ms) => this.ctx.setTimeout(fn, ms),
+      retryDelayMs: Time.second,
+      deferDelayMs: 500,
+      onWakeError: error => this.reportStandalone('warn', 'R2 review scheduler error: %s', error),
+      onTaskError: error => this.reportStandalone('warn', 'R2 review task error: %s', error),
+    })
+    this.r2ReviewScheduler.scheduleWake(state.storyId, new Date(state.nextReviewAt), async () => {
       if (this.databaseResetting || this.desktopRuntimePhase === 'paused') return 'busy'
       await this.r2GoalLedger!.advanceReview(state.storyId, new Date())
     })
