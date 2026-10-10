@@ -15,6 +15,7 @@ export interface R1OutboxRow {
     commitId: string;
     eventId: string;
     payloadHash: string;
+    payloadContent: string;
     approvalId: string;
     principalId: string;
     credentialId: string;
@@ -55,6 +56,7 @@ export interface R1ApprovalRequest {
     commitId: string;
     eventId: string;
     payloadHash: string;
+    payloadContent: string;
     approvalId: string;
     principalId: string;
     credentialId: string;
@@ -90,4 +92,6 @@ export declare class R1AuthorizedOutbox {
     current(id: string): Promise<R1OutboxRow | undefined>;
     history(id: string): Promise<R1OutboxEventRow[]>;
     uncertain(storyId: string): Promise<R1OutboxRow[]>;
+    /** Restart recovery: quarantine durable in-flight attempts, never claim or resend them. */
+    quarantineAttempting(staleBefore: Date, at?: Date): Promise<R1OutboxRow[]>;
 }

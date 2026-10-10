@@ -20,6 +20,7 @@ export interface R1OutboxRow {
   commitId: string
   eventId: string
   payloadHash: string
+  payloadContent: string
   approvalId: string
   principalId: string
   credentialId: string
@@ -57,7 +58,7 @@ export function registerR1OutboxTables(ctx: Context): void {
   if (!tables.interlude_r1_outbox) ctx.model.extend('interlude_r1_outbox', {
     id: 'string(64)', storyId: 'string(255)', participantId: 'string(255)',
     sourceInboxId: 'string(64)', platform: 'string(63)', endpointId: 'string(127)',
-    commitId: 'string(100)', eventId: 'string(120)', payloadHash: 'string(64)',
+    commitId: 'string(100)', eventId: 'string(120)', payloadHash: 'string(64)', payloadContent: 'text',
     approvalId: 'string(128)', principalId: 'string(128)', credentialId: 'string(128)', status: 'string(20)',
     revision: 'unsigned', approvedAt: 'timestamp', expiresAt: 'timestamp',
     updatedAt: 'timestamp', attemptId: 'string(64)', attemptAt: 'timestamp',
@@ -82,6 +83,7 @@ export interface R1ApprovalRequest {
   commitId: string
   eventId: string
   payloadHash: string
+  payloadContent: string
   approvalId: string
   principalId: string
   credentialId: string
@@ -148,7 +150,8 @@ export class R1AuthorizedOutbox {
       || !request.receiptId || !request.principalId || !request.approvalId
       || !request.credentialId || !request.signature
       || !request.storyId || !request.participantId || !request.endpointId
-      || !request.platform || !request.payloadHash || !request.sourceInboxId) {
+      || !request.platform || !request.payloadHash || !request.payloadContent?.trim()
+      || request.payloadContent.length > 12_000 || !request.sourceInboxId) {
       throw Error('R1_OUTBOX_INVALID_APPROVAL')
     }
     // Verification is deliberately performed outside the SQLite transaction.
@@ -161,7 +164,7 @@ export class R1AuthorizedOutbox {
         || review.storyId !== request.storyId || review.participantId !== request.participantId
         || review.sourceInboxId !== request.sourceInboxId
         || review.commitId !== request.commitId || review.eventId !== request.eventId
-        || review.contentHash !== request.payloadHash
+        || review.contentHash !== request.payloadHash || review.payloadContent !== request.payloadContent
         || !source || source.status !== 'observed'
         || source.scriptEntryId !== review.sourceScriptEntryId
         || source.storyId !== request.storyId || source.participantId !== request.participantId
@@ -174,6 +177,7 @@ export class R1AuthorizedOutbox {
         if (prior.approvalId !== request.approvalId || prior.principalId !== request.principalId
           || prior.credentialId !== request.credentialId
           || prior.endpointId !== request.endpointId || prior.payloadHash !== request.payloadHash
+          || prior.payloadContent !== request.payloadContent
           || prior.expiresAt.getTime() !== e) throw Error('R1_OUTBOX_APPROVAL_REPLAY_CONFLICT')
         return prior
       }
@@ -188,6 +192,7 @@ export class R1AuthorizedOutbox {
         id: review.id, storyId: review.storyId, participantId: review.participantId,
         sourceInboxId: review.sourceInboxId, platform: source.platform, endpointId: source.endpointId,
         commitId: review.commitId, eventId: review.eventId, payloadHash: review.contentHash,
+        payloadContent: review.payloadContent,
         approvalId: request.approvalId, principalId: request.principalId,
         credentialId: request.credentialId,
         status: 'authorized', revision: 1, approvedAt: request.approvedAt,
@@ -272,5 +277,26 @@ export class R1AuthorizedOutbox {
     await this.ensureTables()
     return this.ctx.database.get('interlude_r1_outbox', { storyId, status: 'unknown' },
       { sort: { updatedAt: 'asc' }, limit: 100 })
+  }
+
+  /** Restart recovery: quarantine durable in-flight attempts, never claim or resend them. */
+  async quarantineAttempting(staleBefore: Date, at = new Date()): Promise<R1OutboxRow[]> {
+    if (!Number.isFinite(staleBefore.getTime()) || !Number.isFinite(at.getTime()) || at < staleBefore) {
+      throw Error('R1_OUTBOX_INVALID_RECOVERY_TIME')
+    }
+    await this.ensureTables()
+    const rows = await this.ctx.database.get('interlude_r1_outbox', { status: 'attempting' },
+      { sort: { updatedAt: 'asc' }, limit: 100 })
+    const recovered: R1OutboxRow[] = []
+    for (const row of rows) {
+      if (!row.attemptId || !row.attemptAt || row.attemptAt > staleBefore) continue
+      try {
+        recovered.push(await this.settle(row.id, row.attemptId, 'unknown', at,
+          undefined, 'restart-without-transport-receipt'))
+      } catch (error) {
+        if (!(error instanceof Error) || !/R1_OUTBOX_STALE_ATTEMPT/.test(error.message)) throw error
+      }
+    }
+    return recovered
   }
 }

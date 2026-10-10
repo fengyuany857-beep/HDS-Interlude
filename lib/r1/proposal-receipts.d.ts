@@ -10,6 +10,7 @@ export interface R1ProposalReceiptRow {
     commitId: string;
     eventId: string;
     contentHash: string;
+    payloadContent: string;
     status: 'pending-review' | 'authorized' | 'rejected';
     revision: number;
     createdAt: Date;

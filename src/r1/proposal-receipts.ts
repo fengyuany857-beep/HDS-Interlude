@@ -14,6 +14,7 @@ export interface R1ProposalReceiptRow {
   commitId: string
   eventId: string
   contentHash: string
+  payloadContent: string
   status: 'pending-review' | 'authorized' | 'rejected'
   revision: number
   createdAt: Date
@@ -32,7 +33,7 @@ export function registerR1ProposalReceiptTable(ctx: Context): void {
   ctx.model.extend('interlude_r1_proposal_receipt', {
     id: 'string(64)', storyId: 'string(255)', participantId: 'string(255)',
     sourceInboxId: 'string(64)', sourceScriptEntryId: 'unsigned',
-    commitId: 'string(100)', eventId: 'string(120)', contentHash: 'string(64)',
+    commitId: 'string(100)', eventId: 'string(120)', contentHash: 'string(64)', payloadContent: 'text',
     status: 'string(20)', revision: 'unsigned', createdAt: 'timestamp',
     updatedAt: 'timestamp', reason: 'string(500)',
   }, { primary: 'id', indexes: ['storyId', 'participantId', 'status'] })
@@ -115,7 +116,8 @@ export class R1ProposalReceipts {
         const hash = digest([event.content, event.bubbles, event.scriptBinding])
         const found = (await tx.get('interlude_r1_proposal_receipt', { id }))[0]
         if (found) {
-          if (found.contentHash !== hash || found.sourceInboxId !== proposal.sourceInboxId
+          if (found.contentHash !== hash || found.payloadContent !== event.content
+            || found.sourceInboxId !== proposal.sourceInboxId
             || found.sourceScriptEntryId !== proposal.sourceScriptEntryId) throw new Error('R1_RECEIPT_REPLAY_CONFLICT')
           result.push(found)
           continue
@@ -124,6 +126,7 @@ export class R1ProposalReceipts {
           id, storyId: commit.storyId, participantId: commit.participantId,
           sourceInboxId: proposal.sourceInboxId, sourceScriptEntryId: proposal.sourceScriptEntryId,
           commitId: commit.commitId, eventId: event.eventId, contentHash: hash,
+          payloadContent: event.content,
           status: 'pending-review', revision: 1, createdAt: at, updatedAt: at,
         }
         await tx.create('interlude_r1_proposal_receipt', row)

@@ -13,6 +13,7 @@ import {
   R1AuthorizedOutbox, registerR1OutboxTables,
   type R1ApprovalRequest, type R1ApprovalVerifier,
 } from '../src/r1/authorized-outbox'
+import { R1OutboxDispatcher } from '../src/r1/outbox-dispatcher'
 
 async function withDb<T>(path: string, verifier: R1ApprovalVerifier | undefined,
   run: (ctx: Context, box: R1Inbox, reviews: R1ProposalReceipts, outbox: R1AuthorizedOutbox) => Promise<T>): Promise<T> {
@@ -64,7 +65,8 @@ async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalRece
     receiptId: receipt.id, storyId: receipt.storyId, participantId: receipt.participantId,
     sourceInboxId: receipt.sourceInboxId, platform: arrival.platform,
     endpointId: arrival.endpointId, commitId: receipt.commitId, eventId: receipt.eventId,
-    payloadHash: receipt.contentHash, approvalId: 'host-approved:001',
+    payloadHash: receipt.contentHash, payloadContent: receipt.payloadContent,
+    approvalId: 'host-approved:001',
     principalId: 'trusted-host', credentialId: 'test-key', signature: 'test-signature',
     actionClass: 'r1-private-text',
     approvedAt: now, expiresAt: later(30_000),
@@ -170,5 +172,51 @@ test('R1 outbox adapter-accepted is not recipient-delivered; rejection and forge
     assert.equal((await outbox.history(auth.id)).length, 3)
     assert.equal((await ctx.database.get('interlude_script_entry', { storyId: approval.storyId })).length, 1,
       'the candidate never invents an outgoing canonical message')
+  })
+})
+
+test('R1 dispatcher sends exact persisted content once and records adapter acceptance', async () => {
+  await withDb(':memory:', trusted, async (_ctx, box, reviews, outbox) => {
+    const { approval } = await stageProposal(_ctx, box, reviews)
+    const auth = await outbox.authorize(approval, now)
+    const calls: unknown[] = []
+    const result = await new R1OutboxDispatcher(outbox, {
+      sendExact: async attempt => {
+        calls.push(attempt)
+        return { status: 'accepted', adapterMessageId: 'adapter-message-42' }
+      },
+    }).dispatch(auth.id, later(500))
+    assert.equal(result.status, 'accepted')
+    assert.deepEqual(calls, [{
+      attemptId: result.attemptId, platform: approval.platform,
+      endpointId: approval.endpointId, content: approval.payloadContent,
+    }])
+    await assert.rejects(() => outbox.claim(auth.id, later(1_000)), /R1_OUTBOX_NOT_CLAIMABLE/)
+  })
+})
+
+test('R1 ambiguous transport and restart in-flight recovery become UNKNOWN without resend', async () => {
+  await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
+    const { approval } = await stageProposal(ctx, box, reviews)
+    const auth = await outbox.authorize(approval, now)
+    let calls = 0
+    const result = await new R1OutboxDispatcher(outbox, {
+      sendExact: async () => { calls++; throw Error('socket-reset-after-write') },
+    }).dispatch(auth.id, later(500))
+    assert.equal(result.status, 'unknown')
+    assert.equal(calls, 1)
+    await assert.rejects(() => outbox.claim(auth.id, later(1_000)), /R1_OUTBOX_NOT_CLAIMABLE/)
+  })
+
+  await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
+    const { approval } = await stageProposal(ctx, box, reviews)
+    const auth = await outbox.authorize(approval, now)
+    await outbox.claim(auth.id, later(500))
+    const recovered = await outbox.quarantineAttempting(later(500), later(1_000))
+    assert.equal(recovered.length, 1)
+    assert.equal(recovered[0].status, 'unknown')
+    assert.equal((await outbox.quarantineAttempting(later(1_000), later(2_000))).length, 0)
+    assert.deepEqual((await outbox.history(auth.id)).map(row => row.kind),
+      ['authorized', 'attempting', 'unknown'])
   })
 })
