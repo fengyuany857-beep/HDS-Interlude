@@ -862,7 +862,7 @@ export class InterludeService extends Service {
       onTaskError: error => this.reportStandalone('warn', 'R2 review task error: %s', error),
     })
     this.r2ReviewScheduler.scheduleWake(state.storyId, new Date(state.nextReviewAt), async () => {
-      if (this.databaseResetting || this.desktopRuntimePhase === 'paused') return 'busy'
+      if (this.databaseResetting || this.desktopRuntimePhase === 'paused') return 'busy' as const
       await this.r2GoalLedger!.advanceReview(state.storyId, new Date())
     })
   }
