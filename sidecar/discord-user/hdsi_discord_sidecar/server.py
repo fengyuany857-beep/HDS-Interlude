@@ -11,6 +11,8 @@ def create_app(core: BridgeCore) -> web.Application:
 
     @web.middleware
     async def authorize(request: web.Request, handler):
+        if request.path == "/healthz":
+            return await handler(request)
         if not core.config.authorizes(request.headers.get("Authorization")):
             raise web.HTTPUnauthorized(text="unauthorized")
         try:
@@ -72,9 +74,18 @@ def create_app(core: BridgeCore) -> web.Application:
             str(body.get("channel_id", "")), str(body.get("content", "")),
         ))
 
+    async def health(request: web.Request) -> web.Response:
+        transport = core.transport
+        ready = bool(getattr(transport, "is_ready", lambda: False)())
+        user = getattr(transport, "user", None)
+        if not ready or str(getattr(user, "id", "")) != core.config.role_account_id:
+            raise web.HTTPServiceUnavailable(text="discord gateway not ready")
+        return web.json_response({"status": "ready", "account_id": core.config.role_account_id})
+
     app.router.add_get("/v1/events", events)
     app.router.add_post("/v1/user.channel.create", private_channel)
     app.router.add_post("/v1/message.create", message_create)
+    app.router.add_get("/healthz", health)
     return app
 
 

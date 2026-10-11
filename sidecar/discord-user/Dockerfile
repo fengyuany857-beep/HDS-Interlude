@@ -20,6 +20,6 @@ USER 10001:10001
 VOLUME ["/var/lib/hdsi-discord"]
 EXPOSE 5140
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD ["python", "-c", "import socket;s=socket.create_connection(('127.0.0.1',5140),2);s.close()"]
+  CMD ["python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:5140/healthz',timeout=2).read()"]
 ENTRYPOINT ["python", "run.py"]
 

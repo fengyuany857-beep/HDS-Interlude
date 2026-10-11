@@ -1,9 +1,12 @@
 import asyncio
 import unittest
 import tempfile
+from types import SimpleNamespace
 from datetime import datetime, timezone
+from aiohttp.test_utils import TestClient, TestServer
 
 from hdsi_discord_sidecar import BridgeConfig, BridgeCore, EventJournal, InboundMessage
+from hdsi_discord_sidecar.server import create_app
 
 
 ROLE = "100000000000000001"
@@ -16,6 +19,11 @@ TOKEN = "local-bridge-token-32-characters-minimum"
 class MockTransport:
     def __init__(self):
         self.sent = []
+        self.ready = False
+        self.user = None
+
+    def is_ready(self):
+        return self.ready
 
     async def resolve_dm(self, user_id):
         if user_id != PEER:
@@ -70,6 +78,21 @@ class BridgeCoreTest(unittest.IsolatedAsyncioTestCase):
             BridgeConfig(ROLE, PEER, "short")
         self.assertTrue(self.core.config.authorizes(f"Bearer {TOKEN}"))
         self.assertFalse(self.core.config.authorizes(f"Bearer {TOKEN}x"))
+
+    async def test_health_requires_ready_exact_discord_identity(self):
+        client = TestClient(TestServer(create_app(self.core)))
+        await client.start_server()
+        try:
+            self.assertEqual((await client.get('/healthz')).status, 503)
+            self.transport.ready = True
+            self.transport.user = SimpleNamespace(id=int(ROLE) + 1)
+            self.assertEqual((await client.get('/healthz')).status, 503)
+            self.transport.user = SimpleNamespace(id=int(ROLE))
+            response = await client.get('/healthz')
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())['account_id'], ROLE)
+        finally:
+            await client.close()
 
     async def test_no_subscriber_replays_after_reconnect_and_restart_without_duplicate(self):
         with tempfile.TemporaryDirectory() as directory:
