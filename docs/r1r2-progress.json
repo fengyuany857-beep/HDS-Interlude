@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "updatedAt": "2026-10-11T07:05:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
-  "evaluatedHead": "99536ed574bc39ef6c7044d47dff2f9455a327e9",
+  "evaluatedHead": "e7f60da126ca9b7c1220926786718f5383ebad0b",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
   "releaseState": "PARTIAL",
   "phases": {
@@ -60,6 +60,8 @@
       { "head": "20f2bd108262cc133d5999511eba1a551109fc00", "run": 38083568850, "result": "success" },
       { "head": "ecd9f22d3bf0e0f0a59ec1cf80e6e1d38f3569e8", "run": 38083698523, "result": "success" },
       { "head": "12b9b5f59a20df8cfd20d99c862cb2df86393aef", "run": 38083855934, "result": "success" }
+      ,{ "head": "1a3fbc18988fdec99fa847de66c576cfa56dfd7a", "run": 38119102266, "result": "success" }
+      ,{ "head": "e7f60da126ca9b7c1220926786718f5383ebad0b", "run": 38119549933, "result": "success" }
     ]
   },
   "evidence": [
