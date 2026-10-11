@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T08:00:00Z",
+  "updatedAt": "2026-10-11T07:54:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
-  "evaluatedHead": "e7f60da126ca9b7c1220926786718f5383ebad0b",
+  "evaluatedHead": "f34dad8e1f3ab305a593f63e5be373d20d374192",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
   "releaseState": "PARTIAL",
   "phases": {
@@ -10,10 +10,10 @@
     "B_trusted_host_authorization": "complete",
     "C_outbox_receipt_recovery": "complete",
     "D_fault_restart_concurrency_soak": "complete",
-    "E_release_audit": "partial"
+    "E_release_audit": "complete_without_credentials"
   },
   "discordUserBridge": {
-    "phase": "C_MIDDLEWARE_PERSISTENCE_VERIFIED",
+    "phase": "E_LOCAL_CANDIDATE_VERIFIED",
     "verified": [
       "Google Drive source TXT read as design input, not deployment evidence.",
       "discord.py-self 2.1.0 installed in an isolated environment; Python compatibility, MIT license and required client/DM/error interfaces inspected.",
@@ -24,29 +24,33 @@
       "The process E2E now carries the inbound row through R1 observation, grounded ScriptCommit proposal, Ed25519 host approval, durable Authorized Outbox and exact sidecar DM dispatch receipt."
       ,"The formal plugin middleware auto-creates a Discord story and participant, then resumes the same identities from file SQLite after process restart."
       ,"The sidecar persists inbound events before delivery, replays stable Satori sequence numbers after reconnect/restart, and deduplicates repeated Discord message IDs."
+      ,"Immediate, delayed and proactive delivery kinds are derived from canonical ScriptEvents, persisted in review receipts, host-signed, and dispatched only through Authorized Outbox."
+      ,"Delayed review is unavailable before notBefore; proactive review requires an Agency-approved canonical background action and the exact enabled private endpoint."
+      ,"Python transitive dependencies and build tooling are hash locked; the non-root, read-only Docker runtime builds offline from verified wheels and publishes Satori only on host loopback."
+      ,"A 1000-event reconnect/restart soak, backup/restore integrity check, pip-audit and npm audit passed locally."
     ],
     "notVerified": [
       "No real Discord login, API call or message.",
       "No VPS deployment or long-running service.",
       "The production transport has only static/import validation; no Discord Gateway connectivity was attempted.",
-      "Delayed/proactive Authorized Outbox persistence and fault tests remain."
+      "The four credentialed production-model behavior tests remain intentionally skipped."
     ],
     "localVerification": {
-      "nodeTests": 581,
-      "nodePassed": 577,
+      "nodeTests": 585,
+      "nodePassed": 581,
       "nodeFailed": 0,
       "nodeSkipped": 4,
-      "pythonTests": 4,
-      "pythonPassed": 4,
+      "pythonTests": 5,
+      "pythonPassed": 5,
       "typecheck": "passed",
       "build": "passed"
     },
-    "next": "Verify immediate, delayed and proactive Discord deliveries all originate from durable signed Authorized Outbox rows, including restart and UNKNOWN isolation."
+    "next": "Phase F only: obtain bounded authorization for the exact Discord role/user accounts and isolated VPS test instance, then perform real recipient, restart, delayed, proactive, backup and rollback verification."
   },
   "verified": {
     "local": {
-      "tests": 579,
-      "passed": 575,
+      "tests": 585,
+      "passed": 581,
       "failed": 0,
       "skipped": 4,
       "typecheck": "passed",
@@ -64,6 +68,11 @@
       { "head": "12b9b5f59a20df8cfd20d99c862cb2df86393aef", "run": 38083855934, "result": "success" }
       ,{ "head": "1a3fbc18988fdec99fa847de66c576cfa56dfd7a", "run": 38119102266, "result": "success" }
       ,{ "head": "e7f60da126ca9b7c1220926786718f5383ebad0b", "run": 38119549933, "result": "success" }
+      ,{ "head": "a05326703e4037f082f48d4a64c2ed9bcf7a3341", "run": 38121698773, "result": "success" }
+      ,{ "head": "a286236c6ffe8bb5bafbc627f079ff9299938a29", "run": 38121799807, "result": "success" }
+      ,{ "head": "97ef7369ffb1e8392d035ae25e84f6ce9a19d698", "run": 38122206642, "result": "success" }
+      ,{ "head": "4736980b1cb99e7f79f21212d840cb04f2e65d9b", "run": 38122444685, "result": "success" }
+      ,{ "head": "f34dad8e1f3ab305a593f63e5be373d20d374192", "run": 38122733917, "result": "success" }
     ]
   },
   "evidence": [
@@ -73,12 +82,15 @@
     "Real TCP peer read followed by acknowledgement loss produces UNKNOWN and no replay.",
     "Independent SQLite connections and separate Node processes contend safely after BEGIN IMMEDIATE; only one claim can succeed."
     ,"Disabled-by-default service dispatch sends exact authorized content through published OneBot and Satori adapters and persists their adapter message IDs."
+    ,"Formal Koishi middleware creates and resumes Discord story/participant identities across SQLite restart; sidecar journal replay is deduplicated by R1 Inbox."
+    ,"Manual scoped security audit found no high/critical issue; dependency audits reported zero known vulnerabilities. This is not a formal Codex Security artifact."
   ],
   "releaseBlockers": [
     { "severity": "P1", "id": "MODEL_BEHAVIOR", "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened." },
-    { "severity": "P1", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; no formal SARIF report exists yet." },
-    { "severity": "P1", "id": "RELEASE", "detail": "Final stable version metadata, CHANGELOG/RC evidence freeze and explicit public release authorization remain." },
-    { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "CI passed 60 consecutive TCP-loss/cross-process cycles; multi-hour or production observation remains intentionally unclaimed." }
+    { "severity": "P2", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; the completed audit is manual/source-backed, not a formal SARIF scan." },
+    { "severity": "P0", "id": "PHASE_F_EXTERNAL_AUTHORIZATION", "detail": "PRIVATE_DEPLOYED_VERIFIED requires fresh bounded authorization for exact Discord accounts, credentials, isolated VPS target and real message actions." },
+    { "severity": "P1", "id": "REAL_RECIPIENT_EVIDENCE", "detail": "No real Discord login, recipient delivery, restart recovery, delayed delivery or proactive contact has been executed." },
+    { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "The deterministic 1000-event local soak passed; multi-hour VPS observation remains intentionally unclaimed." }
   ],
-  "next": "Continue Discord phases B-E on this candidate. Phase F requires fresh authorization for exact Discord accounts, VPS target and real message actions before any credential use or deployment."
+  "next": "All currently executable no-credential work is complete. Request one bounded Phase F authorization covering exact accounts, isolated VPS resources, permitted test messages and rollback window; do not mark PRIVATE_DEPLOYED_VERIFIED before direct recipient and VPS verification."
 }
