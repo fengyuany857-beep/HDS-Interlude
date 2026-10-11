@@ -1,0 +1,49 @@
+"""Production entrypoint. Starting it is a separately authorized phase-F action."""
+from __future__ import annotations
+
+import asyncio
+import os
+import stat
+from pathlib import Path
+
+from aiohttp import web
+
+from hdsi_discord_sidecar import BridgeConfig, BridgeCore
+from hdsi_discord_sidecar.discord_transport import DiscordUserTransport
+from hdsi_discord_sidecar.server import create_app
+
+
+def read_secret(name: str) -> str:
+    path = Path(os.environ[f"{name}_FILE"])
+    mode = stat.S_IMODE(path.stat().st_mode)
+    if mode & 0o077:
+        raise PermissionError(f"{name}_FILE must not be accessible by group/other")
+    value = path.read_text(encoding="utf-8").strip()
+    if not value:
+        raise ValueError(f"{name}_FILE is empty")
+    return value
+
+
+async def main() -> None:
+    role = os.environ["HDSI_DISCORD_ROLE_ACCOUNT_ID"]
+    peer = os.environ["HDSI_DISCORD_ALLOWED_USER_ID"]
+    bridge_token = read_secret("HDSI_BRIDGE_TOKEN")
+    discord_token = read_secret("HDSI_DISCORD_TOKEN")
+    port = int(os.environ.get("HDSI_BRIDGE_PORT", "5140"))
+    transport = DiscordUserTransport(role, peer)
+    core = BridgeCore(BridgeConfig(role, peer, bridge_token), transport)
+    transport.core = core
+    runner = web.AppRunner(create_app(core), access_log=None)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", port)
+    await site.start()
+    try:
+        await transport.start(discord_token, reconnect=True)
+    finally:
+        await transport.close()
+        await runner.cleanup()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+

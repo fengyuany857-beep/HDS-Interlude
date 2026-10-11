@@ -616,12 +616,12 @@ export interface NarrativeInteraction {
 /** Host-owned channel facts supplied to the writer for one narrative turn.
  * These values are routing/evidence metadata, not dialogue or story prose. */
 export interface NarrativeChannelData {
-  turnSources?: Array<{ endpointId: string, channelKind: 'qq' | 'wechat', receivedSeq: number }>
+  turnSources?: Array<{ endpointId: string, channelKind: 'qq' | 'wechat' | 'discord', receivedSeq: number }>
   /** True only when the currently flushed debounce batch contains multiple endpoints. */
   batchMultiEndpoint?: boolean
-  lastEntryChannel?: { endpointId?: string, channelKind?: 'qq' | 'wechat', conversationKind?: 'private' | 'group' }
-  currentChannel?: { endpointId?: string, channelKind?: 'qq' | 'wechat', conversationKind?: 'private' | 'group' }
-  replyEndpoint?: { endpointId?: string, channelKind?: 'qq' | 'wechat' }
+  lastEntryChannel?: { endpointId?: string, channelKind?: 'qq' | 'wechat' | 'discord', conversationKind?: 'private' | 'group' }
+  currentChannel?: { endpointId?: string, channelKind?: 'qq' | 'wechat' | 'discord', conversationKind?: 'private' | 'group' }
+  replyEndpoint?: { endpointId?: string, channelKind?: 'qq' | 'wechat' | 'discord' }
 }
 
 /** Host-filtered transport choice exposed only when multiple channel kinds
@@ -630,7 +630,7 @@ export interface NarrativeEndpointOption {
   endpointId: string
   targetId: string
   targetKind: 'participant' | 'group'
-  channelKind: 'qq' | 'wechat'
+  channelKind: 'qq' | 'wechat' | 'discord'
   conversationKind: 'private' | 'group'
   online: boolean
 }

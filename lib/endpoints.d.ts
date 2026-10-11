@@ -9,7 +9,7 @@
  * 现有查找/投递/回合路径不动；注册表只有派生单端点时，一切解析结果
  * 必须与旧字段逐字节一致（equivalence 测试锚定）。
  */
-export type EndpointChannelKind = 'qq' | 'wechat';
+export type EndpointChannelKind = 'qq' | 'wechat' | 'discord';
 export type EndpointOwnerKind = 'story-role' | 'participant-user' | 'group';
 /** 身份与地址分离：主键是持久随机 ID；账号/对端标识是可变字段。 */
 export interface EndpointDescriptor {
@@ -170,4 +170,4 @@ export interface StoryAliasResolution {
 export declare function resolveStoryAlias(rows: ReadonlyArray<StoryAliasRecord>, aliasStoryId: string): StoryAliasResolution;
 /** M2 §1.4：按 accountKey 查注册表判别通道类型——onebots 别名路线的唯一判别依据。
  * 未注册默认 qq（M2 内全部为 qq；微信接入时注册表行带 wechat 标签即自动切换）。 */
-export declare function channelKindForAccount(rows: ReadonlyArray<EndpointRow>, accountKey: string): 'qq' | 'wechat';
+export declare function channelKindForAccount(rows: ReadonlyArray<EndpointRow>, accountKey: string): EndpointChannelKind;

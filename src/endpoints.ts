@@ -10,7 +10,7 @@
  * 必须与旧字段逐字节一致（equivalence 测试锚定）。
  */
 
-export type EndpointChannelKind = 'qq' | 'wechat'
+export type EndpointChannelKind = 'qq' | 'wechat' | 'discord'
 export type EndpointOwnerKind = 'story-role' | 'participant-user' | 'group'
 
 /** 身份与地址分离：主键是持久随机 ID；账号/对端标识是可变字段。 */
@@ -47,6 +47,10 @@ function isOneBotFamilyPlatform(platform: string) {
     || value === 'qq:onebot' || value.startsWith('qq:onebot:')
 }
 
+function defaultChannelKind(platform: string): EndpointChannelKind {
+  return String(platform ?? '').toLowerCase() === 'discord-user' ? 'discord' : 'qq'
+}
+
 /**
  * 平台隔离的账号键（P1-3）：onebot 家族折叠到 `onebot:` 前缀（历史行不变），
  * 原生平台（wechat 等）用专属前缀——不同平台同 selfId 不再碰撞。键本身已
@@ -69,7 +73,7 @@ export function deriveStoryRoleEndpoint(story: { id: string, platform: string, s
   return {
     id: '', // 由持久化侧生成 UUID；派生函数不造主键
     ownerKind: 'story-role', ownerId: story.id,
-    channelKind: 'qq', platform: story.platform,
+    channelKind: defaultChannelKind(story.platform), platform: story.platform,
     accountKey: endpointAccountKey(story.platform, story.selfId), selfId: String(story.selfId ?? ''),
     conversationKind: undefined,
     enabled: true, createdAt: now, updatedAt: now,
@@ -81,7 +85,7 @@ export function deriveParticipantUserEndpoint(participant: { id: string, platfor
   return {
     id: '',
     ownerKind: 'participant-user', ownerId: participant.id,
-    channelKind: 'qq', platform: participant.platform,
+    channelKind: defaultChannelKind(participant.platform), platform: participant.platform,
     accountKey: endpointAccountKey(participant.platform, participant.selfId),
     selfId: String(participant.selfId ?? ''), userId: String(participant.userId ?? ''),
     conversationKind: 'private',
@@ -119,7 +123,8 @@ export function normalizeEndpointRow(raw: unknown): EndpointRow | undefined {
   const accountKey = String(row.accountKey ?? '').trim()
   const ownerId = String(row.ownerId ?? '').trim()
   if (!id || !accountKey || !ownerId) return undefined
-  const channelKind = row.channelKind === 'wechat' ? 'wechat' : 'qq'
+  const channelKind = row.channelKind === 'wechat' ? 'wechat'
+    : row.channelKind === 'discord' ? 'discord' : defaultChannelKind(String(row.platform ?? ''))
   return {
     id, ownerKind, ownerId, channelKind,
     platform: String(row.platform ?? 'onebot'),
@@ -378,7 +383,7 @@ export function resolveStoryAlias(rows: ReadonlyArray<StoryAliasRecord>, aliasSt
 }
 /** M2 §1.4：按 accountKey 查注册表判别通道类型——onebots 别名路线的唯一判别依据。
  * 未注册默认 qq（M2 内全部为 qq；微信接入时注册表行带 wechat 标签即自动切换）。 */
-export function channelKindForAccount(rows: ReadonlyArray<EndpointRow>, accountKey: string): 'qq' | 'wechat' {
+export function channelKindForAccount(rows: ReadonlyArray<EndpointRow>, accountKey: string): EndpointChannelKind {
   const row = rows.find(item => item.accountKey === accountKey && item.enabled)
-  return row?.channelKind === 'wechat' ? 'wechat' : 'qq'
+  return row?.channelKind === 'wechat' ? 'wechat' : row?.channelKind === 'discord' ? 'discord' : 'qq'
 }

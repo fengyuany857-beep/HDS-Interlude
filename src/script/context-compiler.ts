@@ -170,7 +170,7 @@ export function projectChannelContext(payload: Record<string, any>): ChannelAnno
       const receivedSeq = Number(source?.receivedSeq)
       sources.push({
         endpointId,
-        channelKind: source?.channelKind === 'wechat' ? 'wechat' : 'qq',
+        channelKind: source?.channelKind === 'wechat' ? 'wechat' : source?.channelKind === 'discord' ? 'discord' : 'qq',
         receivedSeq: Number.isSafeInteger(receivedSeq) && receivedSeq >= 0 ? receivedSeq : 0,
       })
       seen.add(endpointId)
@@ -204,7 +204,8 @@ export function projectChannelContext(payload: Record<string, any>): ChannelAnno
   if (!rules.length) return undefined
 
   // 构建简短标记
-  const kind = currentChannel?.channelKind === 'wechat' ? '微信' : 'QQ'
+  const kind = currentChannel?.channelKind === 'wechat' ? '微信'
+    : currentChannel?.channelKind === 'discord' ? 'Discord' : 'QQ'
   const conv = currentChannel?.conversationKind === 'group' ? '群' : '私'
   const tag = `[${kind}·${conv}]`
 

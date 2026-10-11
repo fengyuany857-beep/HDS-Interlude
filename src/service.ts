@@ -7994,7 +7994,7 @@ export class InterludeService extends Service {
   /** 注册一个角色端点到既有故事（幂等；accountKey 被其他故事占用时拒绝）。
    * P1-2：经写队列串行执行——并发 add 不会双双重叠冲突检查；P1-1：落库失败
    * 不进内存且返回失败。 */
-  async addStoryEndpoint(story: InterludeStory, platform: string, selfId: string, channelKind: 'qq' | 'wechat' = 'qq'): Promise<{ ok: boolean, endpointId?: string, error?: string }> {
+  async addStoryEndpoint(story: InterludeStory, platform: string, selfId: string, channelKind: 'qq' | 'wechat' | 'discord' = 'qq'): Promise<{ ok: boolean, endpointId?: string, error?: string }> {
     const account = String(selfId || '').trim()
     if (!account) return { ok: false, error: '账号不能为空。' }
     return this.enqueueEndpointWrite(async () => {

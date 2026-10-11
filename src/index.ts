@@ -701,16 +701,16 @@ function registerCommands(ctx: Context, service: InterludeService, config: Inter
       return '用户端点（' + endpoints.length + ' 个）：\n' + endpoints.map(item => (item.enabled ? '●' : '○') + ' ' + item.platform + ' ' + item.userId + ' 端点=' + item.endpointId).join('\n')
     })
 
-  ctx.command('interlude.story.endpoint [operation:text]', '管理员：管理剧本的角色端点（账号迁移的唯一显式途径）。`add <平台> <账号> [qq|wechat]` 注册端点；`disable <端点ID>` 停用；不带参数列出。')
+  ctx.command('interlude.story.endpoint [operation:text]', '管理员：管理剧本的角色端点（账号迁移的唯一显式途径）。`add <平台> <账号> [qq|wechat|discord]` 注册端点；`disable <端点ID>` 停用；不带参数列出。')
     .action(async ({ session }, operation) => {
       if (!requireManager(service, session)) return '当前 QQ 没有共享主剧本的管理权限。'
       const story = await requireStory(service, session)
       if (typeof story === 'string') return story
       const parts = String(operation ?? '').trim().split(/\s+/).filter(Boolean)
       if (parts[0] === 'add') {
-        if (parts.length < 3) return '用法：interlude.story.endpoint add <平台> <账号> [qq|wechat]'
+        if (parts.length < 3) return '用法：interlude.story.endpoint add <平台> <账号> [qq|wechat|discord]'
         const [, platform, selfId, kindArg] = parts
-        const channelKind = kindArg === 'wechat' ? 'wechat' : 'qq'
+        const channelKind = kindArg === 'wechat' ? 'wechat' : kindArg === 'discord' ? 'discord' : 'qq'
         const result = await service.addStoryEndpoint(story, platform, selfId, channelKind)
         return result.ok ? `角色端点已注册（${platform} ${selfId}，${channelKind}，端点 ${result.endpointId}）。` : `注册失败：${result.error}`
       }
@@ -719,7 +719,7 @@ function registerCommands(ctx: Context, service: InterludeService, config: Inter
         const result = await service.disableStoryEndpoint(parts[1])
         return result.ok ? `端点已停用（${parts[1]}）。` : `停用失败：${result.error}`
       }
-      if (parts.length) return '用法：interlude.story.endpoint [add <平台> <账号> [qq|wechat] | disable <端点ID>]'
+      if (parts.length) return '用法：interlude.story.endpoint [add <平台> <账号> [qq|wechat|discord] | disable <端点ID>]'
       const endpoints = service.listStoryEndpoints(story.id)
       if (!endpoints.length) return '当前故事没有登记任何角色端点。'
       return '角色端点（' + endpoints.length + ' 个）：\n' + endpoints.map(item => (item.enabled ? '●' : '○') + ' ' + item.platform + ' ' + item.selfId + '（' + item.channelKind + (item.online ? '·在线' : '·离线') + '）端点=' + item.endpointId).join('\n')

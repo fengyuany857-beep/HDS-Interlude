@@ -33,6 +33,7 @@ jobs:
       - name: Install
         run: |
           npm ci --no-audit --no-fund
+          python3 -m pip install --disable-pip-version-check 'aiohttp==3.14.5'
           node -e "for(const [n,v] of Object.entries({'yuka':'0.7.8','@koishijs/plugin-mock':'2.6.6','msw':'3.0.3','fast-check':'4.10.2','koishi-plugin-adapter-onebot':'6.9.4','@koishijs/plugin-adapter-satori':'1.5.1','@koishijs/plugin-http':'0.6.3','ws':'8.21.3'})){const p=require(n+'/package.json');if(p.version!==v)throw Error(n+' version mismatch '+p.version);console.log('VERIFIED_PACKAGE',n,v)}"
           git diff --exit-code -- package.json package-lock.json
       - name: Verify candidate wiring, model behavior, and release build

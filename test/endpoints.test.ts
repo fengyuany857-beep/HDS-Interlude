@@ -236,6 +236,19 @@ test('M2-1.4: channelKindForAccount 按注册表判别，未注册默认 qq', as
   assert.equal(channelKindForAccount(rows, 'onebot:999'), 'qq', '未注册默认 qq')
 })
 
+test('Discord endpoints retain channel kind and snowflake strings', async () => {
+  const { deriveParticipantUserEndpoint, deriveStoryRoleEndpoint, normalizeEndpointRow } = await import('../src/endpoints')
+  const story = deriveStoryRoleEndpoint({ id: 's-discord', platform: 'discord-user', selfId: '100000000000000001' })
+  const participant = deriveParticipantUserEndpoint({
+    id: 'p-discord', platform: 'discord-user', selfId: '100000000000000001', userId: '200000000000000002',
+  })
+  assert.equal(story.channelKind, 'discord')
+  assert.equal(participant.channelKind, 'discord')
+  assert.equal(participant.selfId, '100000000000000001')
+  assert.equal(participant.userId, '200000000000000002')
+  assert.equal(normalizeEndpointRow({ ...participant, id: 'ep-discord' })?.channelKind, 'discord')
+})
+
 test('M2-1.3: recordSource 追加端点并按接收序号排序', async () => {
   const { createTurnEngine } = await import('../src/turn-engine')
   const engine = createTurnEngine({ setTimeout: (fn: () => void) => { return () => {} }, userMessageDebounceSeconds: 2, reportOperation: () => {} })
