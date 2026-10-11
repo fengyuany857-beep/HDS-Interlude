@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T09:31:00Z",
+  "updatedAt": "2026-10-11T10:30:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
-  "evaluatedHead": "f34dad8e1f3ab305a593f63e5be373d20d374192",
+  "evaluatedHead": "f13057d5bca2aa830b4a004a439ab9e0d9c66e45",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
   "releaseState": "PARTIAL",
   "phases": {
@@ -13,7 +13,7 @@
     "E_release_audit": "complete_without_credentials"
   },
   "discordUserBridge": {
-    "phase": "F1_ISOLATED_DEPLOYED_NO_CREDENTIALS",
+    "phase": "F2_LIVE_LOGIN_AND_INBOUND_VERIFIED_NO_OUTBOUND",
     "verified": [
       "Google Drive source TXT read as design input, not deployment evidence.",
       "discord.py-self 2.1.0 installed in an isolated environment; Python compatibility, MIT license and required client/DM/error interfaces inspected.",
@@ -31,11 +31,17 @@
       ,"On instance-X6fwAZMl, F1 created only the frozen /srv path, two labeled images, exact stopped containers, exact network and two exact volumes; both containers are non-root, read-only and restart=no."
       ,"Credential-free one-shot containers loaded Sidecar and HDSI/Koishi as UID 10001 and wrote their dedicated volumes; no Discord secret was mounted or read."
       ,"F1 backups are mode 0600; Sidecar SQLite integrity_check returned ok. Emergency stop was executed against exact owner-labeled containers."
+      ,"The owner-only Discord Secret is mounted read-only and was validated only by metadata; its content was never printed, copied into Git, an image, logs or this checkpoint."
+      ,"The Sidecar made a real Discord Gateway connection as role account 1535516476050767992 and its authenticated health endpoint reported that exact account ready."
+      ,"One real DM from allowed account 1048470989958303874 was durably journaled exactly once with remote message 1558784133302460497 and DM channel 1554632917668339842, then entered the published Satori adapter and formal Koishi middleware."
+      ,"Formal middleware automatically created one shared Discord story, one participant and one R1 Inbox row. A Koishi stop/start caused Sidecar replay but produced no duplicate row."
+      ,"Commit f13057d persists and repairs the participant Endpoint DM channel. The VPS database now retains role, peer and DM channel Snowflakes as strings; integrity_check is ok and Outbox remains empty."
+      ,"The updated Koishi image is non-root/read-only/restart=no and has a bounded pre-update database backup; the prior container remains stopped under an exact rollback name."
     ],
     "notVerified": [
-      "No real Discord login, API call or message.",
-      "No live VPS service or long-running process; F1 containers remain stopped.",
-      "The production transport has only static/import validation; no Discord Gateway connectivity was attempted.",
+      "No HDSI outbound Discord message has been attempted; immediate, delayed and proactive recipient delivery remain unverified.",
+      "No narrative model provider is configured in the isolated runtime, so the real Inbox cannot yet produce a model-authored ScriptCommit for review.",
+      "No live trusted-host signer/approval worker is configured; the runtime remains stage-only and cannot bypass Authorized Outbox.",
       "The four credentialed production-model behavior tests remain intentionally skipped."
     ],
     "localVerification": {
@@ -48,7 +54,7 @@
       "typecheck": "passed",
       "build": "passed"
     },
-    "next": "Phase F only: obtain bounded authorization for the exact Discord role/user accounts and isolated VPS test instance, then perform real recipient, restart, delayed, proactive, backup and rollback verification."
+    "next": "Provision an owner-only model-provider Secret and explicit provider/model selection, then wire the isolated trusted-host review signer and perform the already bounded immediate, delayed and one-time proactive recipient checks through Authorized Outbox."
   },
   "verified": {
     "local": {
@@ -76,6 +82,10 @@
       ,{ "head": "97ef7369ffb1e8392d035ae25e84f6ce9a19d698", "run": 38122206642, "result": "success" }
       ,{ "head": "4736980b1cb99e7f79f21212d840cb04f2e65d9b", "run": 38122444685, "result": "success" }
       ,{ "head": "f34dad8e1f3ab305a593f63e5be373d20d374192", "run": 38122733917, "result": "success" }
+      ,{ "head": "7ad03882237a2fae11f2007a1941a8c49a1e996b", "run": 38128555179, "result": "success" }
+      ,{ "head": "96c1c10bfeca340e5eee86451d2e8b49fbe56025", "run": 38130451455, "result": "success" }
+      ,{ "head": "11779a5a43500d4663f2eaf89d7336725bfdda50", "run": 38130539128, "result": "success" }
+      ,{ "head": "f13057d5bca2aa830b4a004a439ab9e0d9c66e45", "run": 38131548505, "result": "success" }
     ]
   },
   "evidence": [
@@ -92,9 +102,10 @@
     { "severity": "P1", "id": "MODEL_BEHAVIOR", "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened." },
     { "severity": "P2", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; the completed audit is manual/source-backed, not a formal SARIF scan." },
     { "severity": "P1", "id": "KOISHI_UPSTREAM_MODERATE", "detail": "The isolated Koishi runtime reports 12 moderate file-type/ASF parser advisories through the current Koishi HTTP dependency chain; high/critical count is zero and npm's proposed fix is a breaking Koishi downgrade, so it was not applied automatically." },
-    { "severity": "P0", "id": "PHASE_F_SECRET", "detail": "No VPS-only Discord Secret file has been provisioned or verified. No token was requested in chat, read, logged or used." },
-    { "severity": "P1", "id": "REAL_RECIPIENT_EVIDENCE", "detail": "No real Discord login, recipient delivery, restart recovery, delayed delivery or proactive contact has been executed." },
+    { "severity": "P0", "id": "MODEL_PROVIDER_SECRET", "detail": "The isolated runtime has no model provider endpoint/key/model selection. Discord inbound is real, but generating a genuine HDSI reply and running the four credentialed behavior tests requires this external credential/configuration." },
+    { "severity": "P0", "id": "LIVE_HOST_APPROVAL_WORKER", "detail": "The deployed runtime is deliberately stage-only. A separately keyed trusted-host review/signing worker must be configured before any real send can enter Authorized Outbox; direct adapter sending is forbidden." },
+    { "severity": "P1", "id": "REAL_RECIPIENT_EVIDENCE", "detail": "Real login, allowed-peer inbound, middleware traversal, durable identity creation and restart dedup are verified. Immediate, delayed and proactive recipient delivery remain unexecuted." },
     { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "The deterministic 1000-event local soak passed; multi-hour VPS observation remains intentionally unclaimed." }
   ],
-  "next": "F1 is complete and stopped. A separate authorization is still required before provisioning/reading the owner-only Secret, starting either container, logging into Discord, binding Koishi to the live Sidecar, or sending any message."
+  "next": "Phase F is PARTIAL. Both isolated containers are running with restart=no and zero Outbox rows. Continue only after an owner-only model-provider Secret plus provider/model selection is available; then install the isolated signer/reviewer and use only the six-message bounded window."
 }
