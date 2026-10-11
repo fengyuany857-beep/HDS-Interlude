@@ -532,6 +532,13 @@ export declare class InterludeService extends Service {
     transitionR1Attention(storyId: string, event: AttentionEvent, now?: Date): Promise<R1AttentionRow>;
     /** Review queue proves only a proposal was recorded; it never claims delivery. */
     pendingR1Review(storyId: string, participantId: string): Promise<R1ProposalReceiptRow[]>;
+    /**
+     * Trusted-host review entrypoint for a staged private Inbox row. It uses the
+     * production context compiler and narrator, but does not persist protagonist
+     * prose or invoke transport. The resulting decision still has to pass the
+     * atomic observation/proposal gate and a separately signed Outbox approval.
+     */
+    prepareR1NarratedReview(inboxId: string, evidence: ActionEvidence, now?: Date): Promise<ObservedCommitProposal>;
     /** Stage an existing Agency-approved canonical background event for host review; never sends. */
     prepareR1BackgroundReview(scriptEntryId: number, eventId: string, evidence: ActionEvidence, now?: Date): Promise<R1ProposalReceiptRow>;
     rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow>;

@@ -9,6 +9,7 @@ import { createTurnEngine } from '../src/turn-engine'
 import { R1Inbox, registerR1Tables, stableInboxId, type R1Arrival } from '../src/r1/inbox'
 import { R1ProposalReceipts, registerR1ProposalReceiptTable } from '../src/r1/proposal-receipts'
 import { R2GoalLedger, registerR2GoalTables } from '../src/r2/goal-ledger'
+import { readFileSync } from 'node:fs'
 
 /**
  * Exercises the candidate-only public service entrypoints against real Koishi
@@ -169,6 +170,51 @@ test('R1 stage-only candidate refuses every direct transport family without invo
   assert.equal(qzone.ok, false)
   assert.equal(qzone.error, 'R1_REVIEW_REQUIRED')
   assert.equal(attempts, 0, 'no platform transport may be attempted in R1 review mode')
+})
+
+test('Phase F narrated review uses production narrator but still returns only an atomic proposal', async () => {
+  const now = new Date('2026-10-11T12:00:00Z')
+  const inbox = {
+    id: 'inbox-1', storyId: 'story-1', participantId: 'participant-1', status: 'unobserved',
+    platform: 'discord-user', endpointId: 'discord-user:role:peer', content: 'hello',
+    receivedAt: new Date(now.getTime() - 1000),
+  }
+  const fixture: any = Object.create(InterludeService.prototype)
+  fixture.r1Inbox = {}
+  fixture.r1ProposalReceipts = {}
+  fixture.dbGet = async (table: string) => table === 'interlude_r1_inbox' ? [inbox] : []
+  fixture.getStory = async () => ({ id: 'story-1', status: 'active' })
+  fixture.getParticipant = async () => ({
+    id: 'participant-1', storyId: 'story-1', status: 'active', platform: 'discord-user',
+    selfId: 'role', userId: 'peer',
+  })
+  let narrated = 0
+  fixture.decide = async () => {
+    narrated += 1
+    return { script: 'She reads it and replies “hi”.', interaction: { seen: true, reply: { mode: 'immediate', content: 'hi' } } }
+  }
+  fixture.observeR1AndPrepare = async (request: any) => ({
+    status: 'proposal-only', sideEffects: 'none', requiresHostRealityGate: true,
+    requiresHostDeliveryAuthorization: true, sourceInboxId: request.inboxId,
+    sourceScriptEntryId: 1, commit: { commitId: 'commit-1', events: [] },
+  })
+  const result = await fixture.prepareR1NarratedReview('inbox-1', {
+    authoritative: true, attemptedTravel: false, claimsCompletedAction: false, completionEvidenceVerified: false,
+  }, now)
+  assert.equal(narrated, 1)
+  assert.equal(result.status, 'proposal-only')
+  assert.equal(result.requiresHostDeliveryAuthorization, true)
+})
+
+test('Phase F runtime pins DeepSeek model id and explicit disabled thinking', () => {
+  const source = readFileSync(new URL('../deploy/discord-user-phase-f/runtime.js', import.meta.url), 'utf8')
+  assert.match(source, /model: 'deepseek-flash'/)
+  assert.doesNotMatch(source, /model: 'deepseek-v4\.1-flash'/i)
+  assert.match(source, /mode: 'deepseek-official'/)
+  assert.match(source, /deepseekThinking: 'disabled'/)
+  assert.match(source, /responseFormat: 'json-object'/)
+  assert.match(source, /r1ApprovalSigningBytes/)
+  assert.match(source, /dispatchR1Authorized/)
 })
 
 test('R2 review wake replacement respects the newer goal deadline without touching transport scheduler', () => {

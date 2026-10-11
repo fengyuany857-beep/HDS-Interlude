@@ -17,3 +17,5 @@ export declare function looksLikeInterludeCommand(content: string): boolean;
 export * from './narrator';
 export * from './service';
 export * from './types';
+export * from './r1/host-approval';
+export * from './r1/authorized-outbox';

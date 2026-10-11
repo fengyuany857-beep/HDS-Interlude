@@ -856,6 +856,34 @@ export class InterludeService extends Service {
     return this.r1ProposalReceipts.pending(storyId, participantId)
   }
 
+  /**
+   * Trusted-host review entrypoint for a staged private Inbox row. It uses the
+   * production context compiler and narrator, but does not persist protagonist
+   * prose or invoke transport. The resulting decision still has to pass the
+   * atomic observation/proposal gate and a separately signed Outbox approval.
+   */
+  async prepareR1NarratedReview(inboxId: string, evidence: ActionEvidence, now = new Date()): Promise<ObservedCommitProposal> {
+    if (!this.r1Inbox || !this.r1ProposalReceipts) throw new Error('R1_OBSERVATION_DISABLED')
+    if (!inboxId?.trim()) throw new Error('R1_INVALID_OBSERVATION_IDENTITY')
+    await assertHostAuthorized(evidence)
+    const row = (await this.dbGet('interlude_r1_inbox', { id: inboxId }))[0]
+    if (!row || row.status !== 'unobserved') throw new Error('R1_INBOX_NOT_UNOBSERVED')
+    const story = await this.getStory(row.storyId)
+    const participant = await this.getParticipant(row.participantId)
+    if (!story || story.status !== 'active' || !participant || participant.status !== 'active'
+      || participant.storyId !== story.id || row.platform !== participant.platform
+      || row.endpointId !== [participant.platform, participant.selfId, participant.userId].join(':')) {
+      throw new Error('R1_INBOX_IDENTITY_MISMATCH')
+    }
+    const receivedAt = new Date(row.receivedAt)
+    if (!Number.isFinite(receivedAt.getTime()) || now < receivedAt) throw new Error('R1_OBSERVATION_TIME_INVALID')
+    const decision = await this.decide(story, participant, 'user-message', receivedAt, now, row.content, [])
+    return this.observeR1AndPrepare({
+      storyId: story.id, participantId: participant.id, inboxId: row.id,
+      frameId: `r1:${row.id}`, burstId: `r1:${row.id}`, now, decision,
+    }, evidence)
+  }
+
   /** Stage an existing Agency-approved canonical background event for host review; never sends. */
   async prepareR1BackgroundReview(scriptEntryId: number, eventId: string,
     evidence: ActionEvidence, now = new Date()): Promise<R1ProposalReceiptRow> {

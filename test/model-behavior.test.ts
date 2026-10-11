@@ -16,6 +16,7 @@ import { systemPrompt } from '../src/narrator'
 const ENDPOINT = process.env.HDSI_TEST_PROVIDER_ENDPOINT ?? ''
 const API_KEY = process.env.HDSI_TEST_API_KEY ?? ''
 const MODEL = process.env.HDSI_TEST_MODEL ?? ''
+const THINKING_DISABLED = process.env.HDSI_TEST_THINKING_DISABLED === '1'
 const skip = !ENDPOINT || !API_KEY || !MODEL
 
 function makeProductionSystemPrompt(kind: 'private' | 'group') {
@@ -60,6 +61,7 @@ async function callModel(system: string, userPayload: string): Promise<Record<st
     headers: { 'content-type': 'application/json', authorization: `Bearer ${API_KEY}` },
     body: JSON.stringify({
       model: MODEL, temperature: 0.72, top_p: 0.8,
+      ...(THINKING_DISABLED ? { thinking: { type: 'disabled' } } : {}),
       response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: system }, { role: 'user', content: userPayload }],
     }),

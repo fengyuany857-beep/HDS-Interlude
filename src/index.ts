@@ -1104,3 +1104,5 @@ export function looksLikeInterludeCommand(content: string) { return /^[!/.]?inte
 export * from './narrator'
 export * from './service'
 export * from './types'
+export * from './r1/host-approval'
+export * from './r1/authorized-outbox'
