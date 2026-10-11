@@ -29,6 +29,7 @@ services:
     cpus: 1.0
     networks: [phase-f]
     volumes: ["koishi-data:/var/lib/hdsi-koishi"]
+    secrets: [local-bridge-token]
 networks:
   phase-f:
     name: hdsi-discord-f-net
@@ -37,3 +38,6 @@ volumes:
     name: hdsi-discord-f-sidecar-data
   koishi-data:
     name: hdsi-discord-f-koishi-data
+secrets:
+  local-bridge-token:
+    file: /srv/hdsi-discord-phase-f/secrets/local_bridge_token
