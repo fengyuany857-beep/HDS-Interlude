@@ -79,6 +79,17 @@ const scenarios = [
   { label: '群聊提及', kind: 'group' as const, msg: '@bot 你觉得呢' },
 ]
 
+function inventedThirdPartySpeaker(script: string): string | undefined {
+  const matches = script.matchAll(/(?:^|[，。！？；\s])([\p{Script=Han}]{1,6})(?:说|问|回复|发来|发消息|发了一句)/gu)
+  for (const match of matches) {
+    const subject = match[1]
+    if (/^(?:她|他|我|你|主角|对方)$/.test(subject)) continue
+    if (/(?:前天|昨天|今天|明天|刚才|之前|之后|到时|准时|一会儿|晚饭前|睡前)/.test(subject)) continue
+    return match[0].trim()
+  }
+  return undefined
+}
+
 test('model behavior: private turn contract (production prompt)', { skip }, async () => {
   const system = makeProductionSystemPrompt('private')
   assert.ok(system.length > 5000, `生产提示词应远长于测试提示词（got ${system.length}）`)
@@ -143,8 +154,15 @@ test('model behavior: no self-invented third-party messages (production prompt)'
     assert.ok(!hasUnknownPhone, `${s.label}: 不应自造电话号码`)
     // 检查编造的第三方发言——当前消息内容是 s.msg（已知），模型不应描写
     // 任何"额外的人发来了消息"的行为。正常的用户消息到达由 currentEvent 提供。
-    const inventedSpeaker = /[^\s你她他我它]{1,4}(?:说|问|回复|发来|发消息|发了一句)/.exec(script)
-    const isInvented = inventedSpeaker && !s.msg.includes(inventedSpeaker[0].slice(0, 2))
-    assert.ok(!isInvented, `${s.label}: 不应编造第三方发言（found "${inventedSpeaker?.[0]}"）`)
+    const inventedSpeaker = inventedThirdPartySpeaker(script)
+    const isInvented = inventedSpeaker && !s.msg.includes(inventedSpeaker.slice(0, 2))
+    assert.ok(!isInvented, `${s.label}: 不应编造第三方发言（found "${inventedSpeaker}"）`)
   }
+})
+
+test('third-party invention detector rejects speakers but not temporal clauses', () => {
+  assert.equal(inventedThirdPartySpeaker('小明说他晚点来。'), '小明说')
+  assert.equal(inventedThirdPartySpeaker('朋友回复了她。'), '朋友回复')
+  assert.equal(inventedThirdPartySpeaker('她前天还说想吃面。'), undefined)
+  assert.equal(inventedThirdPartySpeaker('她决定晚饭前准时来问。'), undefined)
 })
