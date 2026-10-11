@@ -1,0 +1,15 @@
+{
+  "name": "hdsi-discord-f-koishi-runtime",
+  "version": "1.0.1-rc36-f1",
+  "private": true,
+  "dependencies": {
+    "@koishijs/plugin-adapter-satori": "1.5.1",
+    "@koishijs/plugin-http": "0.6.3",
+    "@minatojs/driver-sqlite": "4.7.0",
+    "json-rules-engine": "7.3.1",
+    "koishi": "4.18.11",
+    "qface": "1.4.1",
+    "xstate": "5.33.2",
+    "yuka": "0.7.8"
+  }
+}

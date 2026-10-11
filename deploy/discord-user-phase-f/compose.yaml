@@ -1,0 +1,39 @@
+name: hdsi-discord-f
+services:
+  sidecar:
+    profiles: ["phase-f2-authorized"]
+    container_name: hdsi-discord-f-sidecar
+    image: hdsi-discord-f-sidecar:c6aefbe
+    restart: "no"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    ports: ["127.0.0.1:5140:5140"]
+    networks: [phase-f]
+    volumes: ["sidecar-data:/var/lib/hdsi-discord"]
+  koishi:
+    profiles: ["phase-f2-authorized"]
+    container_name: hdsi-discord-f-koishi
+    image: hdsi-discord-f-koishi:c6aefbe
+    restart: "no"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 192
+    mem_limit: 768m
+    cpus: 1.0
+    networks: [phase-f]
+    volumes: ["koishi-data:/var/lib/hdsi-koishi"]
+networks:
+  phase-f:
+    name: hdsi-discord-f-net
+volumes:
+  sidecar-data:
+    name: hdsi-discord-f-sidecar-data
+  koishi-data:
+    name: hdsi-discord-f-koishi-data

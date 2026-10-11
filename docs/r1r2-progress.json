@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T09:06:00Z",
+  "updatedAt": "2026-10-11T09:31:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
   "evaluatedHead": "f34dad8e1f3ab305a593f63e5be373d20d374192",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
@@ -13,7 +13,7 @@
     "E_release_audit": "complete_without_credentials"
   },
   "discordUserBridge": {
-    "phase": "E_LOCAL_CANDIDATE_VERIFIED",
+    "phase": "F1_ISOLATED_DEPLOYED_NO_CREDENTIALS",
     "verified": [
       "Google Drive source TXT read as design input, not deployment evidence.",
       "discord.py-self 2.1.0 installed in an isolated environment; Python compatibility, MIT license and required client/DM/error interfaces inspected.",
@@ -28,10 +28,13 @@
       ,"Delayed review is unavailable before notBefore; proactive review requires an Agency-approved canonical background action and the exact enabled private endpoint."
       ,"Python transitive dependencies and build tooling are hash locked; the non-root, read-only Docker runtime builds offline from verified wheels and publishes Satori only on host loopback."
       ,"A 1000-event reconnect/restart soak, backup/restore integrity check, pip-audit and npm audit passed locally."
+      ,"On instance-X6fwAZMl, F1 created only the frozen /srv path, two labeled images, exact stopped containers, exact network and two exact volumes; both containers are non-root, read-only and restart=no."
+      ,"Credential-free one-shot containers loaded Sidecar and HDSI/Koishi as UID 10001 and wrote their dedicated volumes; no Discord secret was mounted or read."
+      ,"F1 backups are mode 0600; Sidecar SQLite integrity_check returned ok. Emergency stop was executed against exact owner-labeled containers."
     ],
     "notVerified": [
       "No real Discord login, API call or message.",
-      "No VPS deployment or long-running service.",
+      "No live VPS service or long-running process; F1 containers remain stopped.",
       "The production transport has only static/import validation; no Discord Gateway connectivity was attempted.",
       "The four credentialed production-model behavior tests remain intentionally skipped."
     ],
@@ -88,10 +91,10 @@
   "releaseBlockers": [
     { "severity": "P1", "id": "MODEL_BEHAVIOR", "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened." },
     { "severity": "P2", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; the completed audit is manual/source-backed, not a formal SARIF scan." },
-    { "severity": "P0", "id": "PHASE_F_VPS_ACCESS", "detail": "Phase F execution was authorized, but the controlled workspace rejected project instance-X6fwAZMl as missing or disabled (VCW_ACCESS_APPROVAL_STALE). No SSH alias or alternative authorized route exists; the only observable project is unrelated vcw-acceptance and was not touched." },
+    { "severity": "P1", "id": "KOISHI_UPSTREAM_MODERATE", "detail": "The isolated Koishi runtime reports 12 moderate file-type/ASF parser advisories through the current Koishi HTTP dependency chain; high/critical count is zero and npm's proposed fix is a breaking Koishi downgrade, so it was not applied automatically." },
     { "severity": "P0", "id": "PHASE_F_SECRET", "detail": "No VPS-only Discord Secret file has been provisioned or verified. No token was requested in chat, read, logged or used." },
     { "severity": "P1", "id": "REAL_RECIPIENT_EVIDENCE", "detail": "No real Discord login, recipient delivery, restart recovery, delayed delivery or proactive contact has been executed." },
     { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "The deterministic 1000-event local soak passed; multi-hour VPS observation remains intentionally unclaimed." }
   ],
-  "next": "Register or enable instance-X6fwAZMl in the VPS Coding Workspace control plane (or provide another explicit authorized access route) and provision the owner-only Secret file on that target. Resume with read-only capacity/name/port checks; do not use the unrelated vcw-acceptance project."
+  "next": "F1 is complete and stopped. A separate authorization is still required before provisioning/reading the owner-only Secret, starting either container, logging into Discord, binding Koishi to the live Sidecar, or sending any message."
 }
