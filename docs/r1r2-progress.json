@@ -1,15 +1,30 @@
 {
-  "schemaVersion": 1,
-  "updatedAt": "2026-10-10T20:31:00Z",
+  "schemaVersion": 2,
+  "updatedAt": "2026-10-11T06:15:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
-  "evaluatedHead": "12b9b5f59a20df8cfd20d99c862cb2df86393aef",
-  "releaseState": "BLOCKED_P1",
+  "evaluatedHead": "99536ed574bc39ef6c7044d47dff2f9455a327e9",
+  "targetState": "PRIVATE_DEPLOYED_VERIFIED",
+  "releaseState": "PARTIAL",
   "phases": {
     "A_satori_mock_e2e": "complete",
     "B_trusted_host_authorization": "complete",
     "C_outbox_receipt_recovery": "complete",
     "D_fault_restart_concurrency_soak": "complete",
     "E_release_audit": "partial"
+  },
+  "discordUserBridge": {
+    "phase": "A_STATIC_API_VERIFIED",
+    "verified": [
+      "Google Drive source TXT read as design input, not deployment evidence.",
+      "discord.py-self 2.1.0 installed in an isolated environment; Python compatibility, MIT license and required client/DM/error interfaces inspected.",
+      "Pinned Koishi Satori adapter 1.5.1 selected as the existing Session/Bot seam; no parallel narrative or delivery authority is planned."
+    ],
+    "notVerified": [
+      "No real Discord login, API call or message.",
+      "No VPS deployment or long-running service.",
+      "Bridge Mock E2E and HDSI Discord persistence/fault tests are not yet implemented."
+    ],
+    "next": "Implement the loopback-only Satori v1 sidecar contract and strict role/peer/DM gates, then run it through the published Koishi adapter into R1 Inbox and authorized Outbox."
   },
   "verified": {
     "local": {
@@ -46,5 +61,5 @@
     { "severity": "P1", "id": "RELEASE", "detail": "Final stable version metadata, CHANGELOG/RC evidence freeze and explicit public release authorization remain." },
     { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "CI passed 60 consecutive TCP-loss/cross-process cycles; multi-hour or production observation remains intentionally unclaimed." }
   ],
-  "next": "Configure and run the protected production-model acceptance workflow; obtain a formal security scan artifact if tooling becomes available; then freeze stable-version RC metadata and request final release authorization."
+  "next": "Continue Discord phases B-E on this candidate. Phase F requires fresh authorization for exact Discord accounts, VPS target and real message actions before any credential use or deployment."
 }
