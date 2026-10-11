@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { generateKeyPairSync, sign } from 'node:crypto'
 import test from 'node:test'
 import { App } from 'koishi'
 import { SQLiteDriver } from '@minatojs/driver-sqlite'
 import { R1Inbox, registerR1Tables, type R1Arrival } from '../src/r1/inbox'
 import { registerTables } from '../src/database'
+import { InterludeService } from '../src/service'
+import { R1ProposalReceipts, registerR1ProposalReceiptTable } from '../src/r1/proposal-receipts'
+import { R1AuthorizedOutbox, registerR1OutboxTables, type R1ApprovalRequest } from '../src/r1/authorized-outbox'
+import { createR1HostApprovalVerifier, r1ApprovalSigningBytes } from '../src/r1/host-approval'
+import { createTurnEngine } from '../src/turn-engine'
 
 const ROLE = '100000000000000001', PEER = '200000000000000002'
 const CHANNEL = '300000000000000003', MESSAGE = '400000000000000004'
@@ -46,7 +52,7 @@ test('Discord user sidecar -> published Satori adapter -> R1 Inbox and scoped ou
   const app = new App()
   app.plugin(httpModule.default ?? httpModule)
   app.plugin(SQLiteDriver, { path: ':memory:' })
-  registerTables(app); registerR1Tables(app)
+  registerTables(app); registerR1Tables(app); registerR1ProposalReceiptTable(app); registerR1OutboxTables(app)
   const inbox = new R1Inbox(app)
   let seen!: () => void
   const inbound = new Promise<void>(resolve => { seen = resolve })
@@ -54,7 +60,7 @@ test('Discord user sidecar -> published Satori adapter -> R1 Inbox and scoped ou
     if (session.platform !== 'discord-user') return next()
     const arrival: R1Arrival = {
       storyId: 'discord-story', participantId: 'discord-peer', platform: session.platform,
-      endpointId: [session.platform, session.selfId, session.channelId, session.userId].join(':'),
+      endpointId: [session.platform, session.selfId, session.userId].join(':'),
       platformMessageId: String(session.messageId), content: String(session.content), receivedAt: new Date(),
     }
     await inbox.stage(arrival); seen()
@@ -73,16 +79,55 @@ test('Discord user sidecar -> published Satori adapter -> R1 Inbox and scoped ou
     await Promise.race([inbound, new Promise((_, reject) => setTimeout(() => reject(Error('inbound timeout')), 5000))])
     const staged = await inbox.unread('discord-story', 'discord-peer')
     assert.equal(staged.length, 1); assert.equal(staged[0].platformMessageId, MESSAGE)
-    assert.equal(staged[0].endpointId, `discord-user:${ROLE}:${CHANNEL}:${PEER}`)
+    assert.equal(staged[0].endpointId, `discord-user:${ROLE}:${PEER}`)
     const stranger = await inject({ role_account_id: ROLE, author_user_id: '600000000000000006',
       dm_channel_id: CHANNEL, remote_message_id: '700000000000000007', content: 'blocked',
       is_direct: true, author_is_self: false })
     assert.deepEqual(await stranger.json(), { accepted: false })
     assert.equal((await inbox.unread('discord-story', 'discord-peer')).length, 1)
-    const bot = app.bots.find(bot => bot.platform === 'discord-user' && bot.selfId === ROLE)
-    assert.ok(bot)
-    assert.deepEqual(await bot.sendPrivateMessage(PEER, 'exact authorized payload'), ['500000000000000006'])
-    await assert.rejects(() => bot.sendPrivateMessage('600000000000000006', 'blocked'))
+    const inboxRow = staged[0]
+    const receiptLedger = new R1ProposalReceipts(app)
+    const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+    const verifier = createR1HostApprovalVerifier([{
+      credentialId: 'discord-wire-key', principalId: 'trusted-test-host',
+      publicKeyDerBase64: publicKey.export({ format: 'der', type: 'spki' }).toString('base64'),
+    }])
+    const service: any = Object.create(InterludeService.prototype)
+    service.ctx = app; service.r1Inbox = inbox; service.r1ProposalReceipts = receiptLedger
+    service.r1Outbox = new R1AuthorizedOutbox(app, verifier); service.queues = new Map()
+    service.turnEngine = createTurnEngine({ setTimeout: () => () => {}, userMessageDebounceSeconds: 0, reportOperation: () => {} })
+    const now = new Date()
+    await service.transitionR1Attention('discord-story', 'CHECK', now)
+    const proposal = await service.observeR1AndPrepare({
+      storyId: 'discord-story', participantId: 'discord-peer', inboxId: inboxRow.id,
+      frameId: 'discord-frame', burstId: 'discord-burst', now,
+      decision: { script: '她看见消息，回复“exact authorized payload”。', interaction: {
+        seen: true, reply: { mode: 'immediate', content: 'exact authorized payload' },
+      } },
+    }, { authoritative: true, attemptedTravel: false, claimsCompletedAction: false, completionEvidenceVerified: false })
+    assert.equal(proposal.status, 'proposal-only')
+    const review = (await receiptLedger.pending('discord-story', 'discord-peer'))[0]
+    assert.ok(review)
+    const unsigned: Omit<R1ApprovalRequest, 'signature'> = {
+      receiptId: review.id, storyId: review.storyId, participantId: review.participantId,
+      sourceInboxId: review.sourceInboxId, platform: 'discord-user', endpointId: `discord-user:${ROLE}:${PEER}`,
+      commitId: review.commitId, eventId: review.eventId, payloadHash: review.contentHash,
+      payloadContent: review.payloadContent, approvalId: 'discord-wire-approval',
+      principalId: 'trusted-test-host', credentialId: 'discord-wire-key', actionClass: 'r1-private-text',
+      approvedAt: now, expiresAt: new Date(now.getTime() + 30_000),
+    }
+    const approval = { ...unsigned, signature: sign(null, r1ApprovalSigningBytes(unsigned), privateKey).toString('base64') }
+    const authorized = await service.authorizeR1Proposal(approval, now)
+    const previous = process.env.HDSI_R1_DISPATCH_MODE
+    process.env.HDSI_R1_DISPATCH_MODE = 'authorized'
+    try {
+      const delivered = await service.dispatchR1Authorized(authorized.id, now)
+      assert.equal(delivered.status, 'accepted')
+      assert.equal(delivered.adapterMessageId, '500000000000000006')
+    } finally {
+      if (previous === undefined) delete process.env.HDSI_R1_DISPATCH_MODE
+      else process.env.HDSI_R1_DISPATCH_MODE = previous
+    }
   } finally {
     await app.stop(); await stopSidecar(sidecar.child)
   }

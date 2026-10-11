@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T06:45:00Z",
+  "updatedAt": "2026-10-11T07:05:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
   "evaluatedHead": "99536ed574bc39ef6c7044d47dff2f9455a327e9",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
@@ -20,13 +20,14 @@
       "Pinned Koishi Satori adapter 1.5.1 selected as the existing Session/Bot seam; no parallel narrative or delivery authority is planned.",
       "Python Mock sidecar reached the published Koishi Satori adapter over real loopback WebSocket/HTTP, retained string Snowflakes and the remote message ID, and durably staged one R1 Inbox row.",
       "Unknown peer and wrong DM targets failed closed; exact mock outbound used the adapter Bot contract.",
-      "Discord endpoint rows now retain channelKind=discord instead of being projected as QQ."
+      "Discord endpoint rows now retain channelKind=discord instead of being projected as QQ.",
+      "The process E2E now carries the inbound row through R1 observation, grounded ScriptCommit proposal, Ed25519 host approval, durable Authorized Outbox and exact sidecar DM dispatch receipt."
     ],
     "notVerified": [
       "No real Discord login, API call or message.",
       "No VPS deployment or long-running service.",
       "The production transport has only static/import validation; no Discord Gateway connectivity was attempted.",
-      "Full HDSI story creation/ScriptCommit and delayed/proactive persistence/fault tests remain."
+      "Full HDSI automatic story/participant creation and delayed/proactive persistence/fault tests remain."
     ],
     "localVerification": {
       "nodeTests": 581,
