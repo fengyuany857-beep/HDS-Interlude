@@ -13,7 +13,12 @@ def create_app(core: BridgeCore) -> web.Application:
     async def authorize(request: web.Request, handler):
         if not core.config.authorizes(request.headers.get("Authorization")):
             raise web.HTTPUnauthorized(text="unauthorized")
-        return await handler(request)
+        try:
+            return await handler(request)
+        except PermissionError as error:
+            raise web.HTTPForbidden(text=str(error)) from error
+        except (ValueError, json.JSONDecodeError) as error:
+            raise web.HTTPBadRequest(text=str(error)) from error
 
     app.middlewares.append(authorize)
 

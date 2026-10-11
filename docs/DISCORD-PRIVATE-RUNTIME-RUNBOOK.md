@@ -6,8 +6,9 @@ commands have been run on a VPS or with a real Discord credential.
 ## Isolation and secrets
 
 Use a new directory, Compose project and HDSI database. Do not reuse production
-VCW/Gateway/Runner networks, ports or volumes. The sidecar binds its Satori
-listener to host loopback only. Both secret source files must be `0600`; the
+VCW/Gateway/Runner networks, ports or volumes. Compose publishes the sidecar's
+Satori listener only on host `127.0.0.1:5140`; it does not use host networking.
+Both secret source files must be `0600`; the
 Discord token is never an environment value, build argument or image layer.
 
 The Compose service is behind the explicit `phase-f-authorized` profile so a

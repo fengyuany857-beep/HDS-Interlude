@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile
     image: hdsi-discord-user-sidecar:local
     profiles: ["phase-f-authorized"]
-    network_mode: host
+    ports:
+      - "127.0.0.1:5140:5140"
     read_only: true
     init: true
     restart: unless-stopped
@@ -21,6 +22,7 @@ services:
       HDSI_BRIDGE_TOKEN_FILE: /run/secrets/local_bridge_token
       HDSI_SIDECAR_STATE_DIR: /var/lib/hdsi-discord
       HDSI_BRIDGE_PORT: "5140"
+      HDSI_BRIDGE_BIND: "0.0.0.0"
     secrets:
       - source: discord_user_token
         target: discord_user_token

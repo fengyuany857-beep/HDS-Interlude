@@ -93,6 +93,28 @@ class BridgeCoreTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(second, first)
             restored.close()
 
+    async def test_long_reconnect_soak_keeps_monotonic_sequence_and_exactly_one_remote_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = f"{directory}/soak.sqlite3"
+            journal = EventJournal(path, max_events=1200)
+            core = BridgeCore(BridgeConfig(ROLE, PEER, TOKEN), self.transport, journal)
+            for index in range(1000):
+                message_id = str(500000000000000000 + index)
+                message = InboundMessage(ROLE, PEER, CHANNEL, message_id, f"message-{index}",
+                                         datetime(2026, 10, 11, tzinfo=timezone.utc))
+                self.assertTrue(await core.accept_inbound(message))
+                if index % 50 == 0:
+                    replay = []
+                    await core.replay_to(lambda body: _capture(replay, body))
+                    self.assertEqual(len(replay), index + 1)
+            rows = journal.events()
+            self.assertEqual([row["sn"] for row in rows], list(range(2, 1002)))
+            self.assertEqual(len({row["message"]["id"] for row in rows}), 1000)
+            journal.close()
+            restored = EventJournal(path, max_events=1200)
+            self.assertEqual(restored.events(), rows)
+            restored.close()
+
 
 async def _capture(target, body):
     target.append(body)

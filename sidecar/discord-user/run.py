@@ -30,6 +30,9 @@ async def main() -> None:
     bridge_token = read_secret("HDSI_BRIDGE_TOKEN")
     discord_token = read_secret("HDSI_DISCORD_TOKEN")
     port = int(os.environ.get("HDSI_BRIDGE_PORT", "5140"))
+    bind = os.environ.get("HDSI_BRIDGE_BIND", "127.0.0.1")
+    if bind not in {"127.0.0.1", "0.0.0.0"}:
+        raise ValueError("HDSI_BRIDGE_BIND must be 127.0.0.1 or 0.0.0.0")
     state_dir = Path(os.environ.get("HDSI_SIDECAR_STATE_DIR", "/var/lib/hdsi-discord"))
     state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     transport = DiscordUserTransport(role, peer)
@@ -38,7 +41,7 @@ async def main() -> None:
     transport.core = core
     runner = web.AppRunner(create_app(core), access_log=None)
     await runner.setup()
-    site = web.TCPSite(runner, "127.0.0.1", port)
+    site = web.TCPSite(runner, bind, port)
     await site.start()
     try:
         await transport.start(discord_token, reconnect=True)
