@@ -20,7 +20,9 @@ const roleId = '1535516476050767992'
 const peerId = '1048470989958303874'
 const exactEndpoint = `discord-user:${roleId}:${peerId}`
 process.env.HDSI_R1_PRIVATE_INBOX = 'review-authorized'
-process.env.HDSI_R1_DISPATCH_MODE = 'authorized'
+const outboundArmed = process.env.HDSI_PHASE_F_OUTBOUND_ARMED === '1'
+const backgroundArmed = outboundArmed && process.env.HDSI_PHASE_F_BACKGROUND_ARMED === '1'
+process.env.HDSI_R1_DISPATCH_MODE = outboundArmed ? 'authorized' : 'disabled'
 process.env.HDSI_R1_HOST_CREDENTIAL_ID = 'hdsi-discord-f-host-v1'
 process.env.HDSI_R1_HOST_PRINCIPAL_ID = 'hdsi-discord-f-reviewer'
 process.env.HDSI_R1_HOST_PUBLIC_KEY_DER_BASE64 = hostPublicKey
@@ -48,7 +50,10 @@ app.plugin(hdsi, {
     mainResponseFormat: 'json-object',
   },
   onebot: { enabled: false }, sharedStory: {},
-  runtime: { autoCreate: true, captureDirectMessages: true, ignoreCommandMessages: true, allowProactiveMessages: false },
+  memory: { enabled: backgroundArmed },
+  schedulePreplan: { enabled: backgroundArmed },
+  agency: { enabled: backgroundArmed },
+  runtime: { autoCreate: true, captureDirectMessages: true, ignoreCommandMessages: true, allowProactiveMessages: false, autoAdvanceEnabled: backgroundArmed },
 })
 
 let reviewRunning = false
@@ -94,7 +99,10 @@ async function reviewOneImmediate() {
 
 app.start().then(() => {
   console.log('HDSI_PHASE_F_KOISHI_READY')
-  process.on('SIGUSR1', () => reviewOneImmediate().catch(error => console.error('HDSI_PHASE_F_REVIEW_FAILED', error?.stack || error)))
+  process.on('SIGUSR1', () => {
+    if (!outboundArmed) { console.warn('HDSI_PHASE_F_OUTBOUND_DISARMED'); return }
+    reviewOneImmediate().catch(error => console.error('HDSI_PHASE_F_REVIEW_FAILED', error?.stack || error))
+  })
 }).catch(error => {
   console.error(error?.stack || error)
   process.exitCode = 1

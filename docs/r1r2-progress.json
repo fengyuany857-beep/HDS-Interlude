@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T10:30:00Z",
+  "updatedAt": "2026-10-11T13:45:26Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
-  "evaluatedHead": "f13057d5bca2aa830b4a004a439ab9e0d9c66e45",
+  "evaluatedHead": "941fd16a0f98a4dfd3609167c45c3b6be6ac105b",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
   "releaseState": "PARTIAL",
   "phases": {
@@ -10,7 +10,9 @@
     "B_trusted_host_authorization": "complete",
     "C_outbox_receipt_recovery": "complete",
     "D_fault_restart_concurrency_soak": "complete",
-    "E_release_audit": "complete_without_credentials"
+    "E_release_audit": "complete_without_credentials",
+    "F3B_offline_test_recovery": "complete_without_model_credentials",
+    "F3C_isolated_Koishi_worker": "image_built_runtime_switch_blocked"
   },
   "discordUserBridge": {
     "phase": "F2_LIVE_LOGIN_AND_INBOUND_VERIFIED_NO_OUTBOUND",
@@ -21,22 +23,22 @@
       "Python Mock sidecar reached the published Koishi Satori adapter over real loopback WebSocket/HTTP, retained string Snowflakes and the remote message ID, and durably staged one R1 Inbox row.",
       "Unknown peer and wrong DM targets failed closed; exact mock outbound used the adapter Bot contract.",
       "Discord endpoint rows now retain channelKind=discord instead of being projected as QQ.",
-      "The process E2E now carries the inbound row through R1 observation, grounded ScriptCommit proposal, Ed25519 host approval, durable Authorized Outbox and exact sidecar DM dispatch receipt."
-      ,"The formal plugin middleware auto-creates a Discord story and participant, then resumes the same identities from file SQLite after process restart."
-      ,"The sidecar persists inbound events before delivery, replays stable Satori sequence numbers after reconnect/restart, and deduplicates repeated Discord message IDs."
-      ,"Immediate, delayed and proactive delivery kinds are derived from canonical ScriptEvents, persisted in review receipts, host-signed, and dispatched only through Authorized Outbox."
-      ,"Delayed review is unavailable before notBefore; proactive review requires an Agency-approved canonical background action and the exact enabled private endpoint."
-      ,"Python transitive dependencies and build tooling are hash locked; the non-root, read-only Docker runtime builds offline from verified wheels and publishes Satori only on host loopback."
-      ,"A 1000-event reconnect/restart soak, backup/restore integrity check, pip-audit and npm audit passed locally."
-      ,"On instance-X6fwAZMl, F1 created only the frozen /srv path, two labeled images, exact stopped containers, exact network and two exact volumes; both containers are non-root, read-only and restart=no."
-      ,"Credential-free one-shot containers loaded Sidecar and HDSI/Koishi as UID 10001 and wrote their dedicated volumes; no Discord secret was mounted or read."
-      ,"F1 backups are mode 0600; Sidecar SQLite integrity_check returned ok. Emergency stop was executed against exact owner-labeled containers."
-      ,"The owner-only Discord Secret is mounted read-only and was validated only by metadata; its content was never printed, copied into Git, an image, logs or this checkpoint."
-      ,"The Sidecar made a real Discord Gateway connection as role account 1535516476050767992 and its authenticated health endpoint reported that exact account ready."
-      ,"One real DM from allowed account 1048470989958303874 was durably journaled exactly once with remote message 1558784133302460497 and DM channel 1554632917668339842, then entered the published Satori adapter and formal Koishi middleware."
-      ,"Formal middleware automatically created one shared Discord story, one participant and one R1 Inbox row. A Koishi stop/start caused Sidecar replay but produced no duplicate row."
-      ,"Commit f13057d persists and repairs the participant Endpoint DM channel. The VPS database now retains role, peer and DM channel Snowflakes as strings; integrity_check is ok and Outbox remains empty."
-      ,"The updated Koishi image is non-root/read-only/restart=no and has a bounded pre-update database backup; the prior container remains stopped under an exact rollback name."
+      "The process E2E now carries the inbound row through R1 observation, grounded ScriptCommit proposal, Ed25519 host approval, durable Authorized Outbox and exact sidecar DM dispatch receipt.",
+      "The formal plugin middleware auto-creates a Discord story and participant, then resumes the same identities from file SQLite after process restart.",
+      "The sidecar persists inbound events before delivery, replays stable Satori sequence numbers after reconnect/restart, and deduplicates repeated Discord message IDs.",
+      "Immediate, delayed and proactive delivery kinds are derived from canonical ScriptEvents, persisted in review receipts, host-signed, and dispatched only through Authorized Outbox.",
+      "Delayed review is unavailable before notBefore; proactive review requires an Agency-approved canonical background action and the exact enabled private endpoint.",
+      "Python transitive dependencies and build tooling are hash locked; the non-root, read-only Docker runtime builds offline from verified wheels and publishes Satori only on host loopback.",
+      "A 1000-event reconnect/restart soak, backup/restore integrity check, pip-audit and npm audit passed locally.",
+      "On instance-X6fwAZMl, F1 created only the frozen /srv path, two labeled images, exact stopped containers, exact network and two exact volumes; both containers are non-root, read-only and restart=no.",
+      "Credential-free one-shot containers loaded Sidecar and HDSI/Koishi as UID 10001 and wrote their dedicated volumes; no Discord secret was mounted or read.",
+      "F1 backups are mode 0600; Sidecar SQLite integrity_check returned ok. Emergency stop was executed against exact owner-labeled containers.",
+      "The owner-only Discord Secret is mounted read-only and was validated only by metadata; its content was never printed, copied into Git, an image, logs or this checkpoint.",
+      "The Sidecar made a real Discord Gateway connection as role account 1535516476050767992 and its authenticated health endpoint reported that exact account ready.",
+      "One real DM from allowed account 1048470989958303874 was durably journaled exactly once with remote message 1558784133302460497 and DM channel 1554632917668339842, then entered the published Satori adapter and formal Koishi middleware.",
+      "Formal middleware automatically created one shared Discord story, one participant and one R1 Inbox row. A Koishi stop/start caused Sidecar replay but produced no duplicate row.",
+      "Commit f13057d persists and repairs the participant Endpoint DM channel. The VPS database now retains role, peer and DM channel Snowflakes as strings; integrity_check is ok and Outbox remains empty.",
+      "The updated Koishi image is non-root/read-only/restart=no and has a bounded pre-update database backup; the prior container remains stopped under an exact rollback name."
     ],
     "notVerified": [
       "No HDSI outbound Discord message has been attempted; immediate, delayed and proactive recipient delivery remain unverified.",
@@ -45,8 +47,8 @@
       "The four credentialed production-model behavior tests remain intentionally skipped."
     ],
     "localVerification": {
-      "nodeTests": 585,
-      "nodePassed": 581,
+      "nodeTests": 588,
+      "nodePassed": 584,
       "nodeFailed": 0,
       "nodeSkipped": 4,
       "pythonTests": 5,
@@ -54,38 +56,193 @@
       "typecheck": "passed",
       "build": "passed"
     },
-    "next": "Provision an owner-only model-provider Secret and explicit provider/model selection, then wire the isolated trusted-host review signer and perform the already bounded immediate, delayed and one-time proactive recipient checks through Authorized Outbox."
+    "next": "User deferred F3-B paid live-model checks, F3-C Koishi runtime switch and F4 recipient sends. Keep source and backups, do not imply live reviewer. Resume with fresh authorization and state verification.",
+    "f3bLatestVerification": {
+      "observedAtUTC": "2026-10-11T12:13:13Z",
+      "evaluatedHead": "941fd16a0f98a4dfd3609167c45c3b6be6ac105b",
+      "testEnvironment": "VPS isolated Node dependencies, Python venv aiohttp==3.14.5, no model API credentials",
+      "nodeTests": 588,
+      "nodePassed": 584,
+      "nodeFailed": 0,
+      "nodeSkipped": 4,
+      "typecheck": "passed",
+      "isolatedSidecarIntegrationTests": {
+        "passed": 2,
+        "failed": 0
+      },
+      "modelBehaviorTests": {
+        "detectorUnitPassed": 1,
+        "credentialedTestsSkipped": 4,
+        "liveModelResponseVerification": "NOT_EXECUTED"
+      },
+      "apiCalls": 0,
+      "discordOutbound": 0,
+      "dockerMutation": false,
+      "runningImages": {
+        "koishi": "hdsi-discord-f-koishi:f13057d",
+        "sidecar": "hdsi-discord-f-sidecar:96c1c10"
+      },
+      "databaseObserved": {
+        "story": 1,
+        "participant": 1,
+        "inbox": 1,
+        "outbox": 0,
+        "proposalReceipt": 0,
+        "quickCheck": "ok"
+      },
+      "credentials": "contents not read; model and host-signing secrets not mounted in running Koishi",
+      "knownLimitations": [
+        "the full Python sidecar requirements lock could not be installed from the current package index because discord-protos==0.0.2 was not offered; only aiohttp==3.14.5 was installed for mock integration tests",
+        "credentialed model test remains intentionally skipped",
+        "SatoriBot.dispose emitted non-fatal teardown diagnostic"
+      ],
+      "runtimeState": "F2_LIVE_INBOUND_STAGED_NO_OUTBOUND",
+      "releaseState": "PARTIAL"
+    },
+    "f3cCurrentOperation": {
+      "result": "PARTIAL",
+      "actionResult": "IMAGE_BUILD_VERIFIED_RUNTIME_DEPLOYMENT_BLOCKED",
+      "buildImage": "hdsi-discord-f-koishi:941fd16-f3c2",
+      "imageId": "sha256:4ea669132c742c69744fb39fb7fae1e4321b77946d66c8b3f63d6db59a56b958",
+      "gitHead": "941fd16a0f98a4dfd3609167c45c3b6be6ac105b",
+      "uncommittedRuntimePatchSha256": "ba8ee427d6860467d8562b63ac99c6e9d4291484685f46e96b55f21318e585b2",
+      "gates": "outbound and autonomous background model tasks are off by default in candidate runtime",
+      "backup": "/srv/hdsi-discord-phase-f/backups/koishi-pre-f3c-20261011T123943Z.sqlite3",
+      "backupSha256": "14491b666865e71f2b3405df50a49024ae76d26ab93194322cceb797a24d793f",
+      "backupIntegrity": "ok",
+      "runningKoishiImage": "hdsi-discord-f-koishi:f13057d",
+      "runningSidecarImage": "hdsi-discord-f-sidecar:96c1c10",
+      "newWorkerRunning": false,
+      "noSecretsPrinted": true,
+      "modelCallsByThisOperation": 0,
+      "discordSendAttemptsByThisOperation": 0,
+      "dbReadback": {
+        "story": 1,
+        "participant": 1,
+        "inbox": 1,
+        "outbox": 0,
+        "proposalReceipt": 0,
+        "quickCheck": "ok"
+      },
+      "blocker": "Container switch command rejected by execution-channel safety gate; no alternative route attempted.",
+      "checkpointState": "PARTIAL"
+    }
   },
   "verified": {
     "local": {
-      "tests": 585,
-      "passed": 581,
+      "tests": 588,
+      "passed": 584,
       "failed": 0,
       "skipped": 4,
       "typecheck": "passed",
       "build": "passed"
     },
     "githubActions": [
-      { "head": "3285c641ce4faa03b0bd76873f8b8585ce6ec6b0", "run": 38082192375, "result": "success" },
-      { "head": "3f1610ad9d284533419a60be878f4c3709e450d0", "run": 38082511352, "result": "success" },
-      { "head": "ccca4170bfaf230a543d4b9d8f30aab8376a8c98", "run": 38082674574, "result": "success" },
-      { "head": "2b2ed56c2af76d40c69c06921b7e74afb867e1b8", "run": 38082787418, "result": "success" },
-      { "head": "2f7c1be008458822794e55bf15340a2093e18a46", "run": 38082978230, "result": "success" },
-      { "head": "e97e60ecad514d011004ac96ada11d110db9f1db", "run": 38083358336, "result": "success" },
-      { "head": "20f2bd108262cc133d5999511eba1a551109fc00", "run": 38083568850, "result": "success" },
-      { "head": "ecd9f22d3bf0e0f0a59ec1cf80e6e1d38f3569e8", "run": 38083698523, "result": "success" },
-      { "head": "12b9b5f59a20df8cfd20d99c862cb2df86393aef", "run": 38083855934, "result": "success" }
-      ,{ "head": "1a3fbc18988fdec99fa847de66c576cfa56dfd7a", "run": 38119102266, "result": "success" }
-      ,{ "head": "e7f60da126ca9b7c1220926786718f5383ebad0b", "run": 38119549933, "result": "success" }
-      ,{ "head": "a05326703e4037f082f48d4a64c2ed9bcf7a3341", "run": 38121698773, "result": "success" }
-      ,{ "head": "a286236c6ffe8bb5bafbc627f079ff9299938a29", "run": 38121799807, "result": "success" }
-      ,{ "head": "97ef7369ffb1e8392d035ae25e84f6ce9a19d698", "run": 38122206642, "result": "success" }
-      ,{ "head": "4736980b1cb99e7f79f21212d840cb04f2e65d9b", "run": 38122444685, "result": "success" }
-      ,{ "head": "f34dad8e1f3ab305a593f63e5be373d20d374192", "run": 38122733917, "result": "success" }
-      ,{ "head": "7ad03882237a2fae11f2007a1941a8c49a1e996b", "run": 38128555179, "result": "success" }
-      ,{ "head": "96c1c10bfeca340e5eee86451d2e8b49fbe56025", "run": 38130451455, "result": "success" }
-      ,{ "head": "11779a5a43500d4663f2eaf89d7336725bfdda50", "run": 38130539128, "result": "success" }
-      ,{ "head": "f13057d5bca2aa830b4a004a439ab9e0d9c66e45", "run": 38131548505, "result": "success" }
+      {
+        "head": "3285c641ce4faa03b0bd76873f8b8585ce6ec6b0",
+        "run": 38082192375,
+        "result": "success"
+      },
+      {
+        "head": "3f1610ad9d284533419a60be878f4c3709e450d0",
+        "run": 38082511352,
+        "result": "success"
+      },
+      {
+        "head": "ccca4170bfaf230a543d4b9d8f30aab8376a8c98",
+        "run": 38082674574,
+        "result": "success"
+      },
+      {
+        "head": "2b2ed56c2af76d40c69c06921b7e74afb867e1b8",
+        "run": 38082787418,
+        "result": "success"
+      },
+      {
+        "head": "2f7c1be008458822794e55bf15340a2093e18a46",
+        "run": 38082978230,
+        "result": "success"
+      },
+      {
+        "head": "e97e60ecad514d011004ac96ada11d110db9f1db",
+        "run": 38083358336,
+        "result": "success"
+      },
+      {
+        "head": "20f2bd108262cc133d5999511eba1a551109fc00",
+        "run": 38083568850,
+        "result": "success"
+      },
+      {
+        "head": "ecd9f22d3bf0e0f0a59ec1cf80e6e1d38f3569e8",
+        "run": 38083698523,
+        "result": "success"
+      },
+      {
+        "head": "12b9b5f59a20df8cfd20d99c862cb2df86393aef",
+        "run": 38083855934,
+        "result": "success"
+      },
+      {
+        "head": "1a3fbc18988fdec99fa847de66c576cfa56dfd7a",
+        "run": 38119102266,
+        "result": "success"
+      },
+      {
+        "head": "e7f60da126ca9b7c1220926786718f5383ebad0b",
+        "run": 38119549933,
+        "result": "success"
+      },
+      {
+        "head": "a05326703e4037f082f48d4a64c2ed9bcf7a3341",
+        "run": 38121698773,
+        "result": "success"
+      },
+      {
+        "head": "a286236c6ffe8bb5bafbc627f079ff9299938a29",
+        "run": 38121799807,
+        "result": "success"
+      },
+      {
+        "head": "97ef7369ffb1e8392d035ae25e84f6ce9a19d698",
+        "run": 38122206642,
+        "result": "success"
+      },
+      {
+        "head": "4736980b1cb99e7f79f21212d840cb04f2e65d9b",
+        "run": 38122444685,
+        "result": "success"
+      },
+      {
+        "head": "f34dad8e1f3ab305a593f63e5be373d20d374192",
+        "run": 38122733917,
+        "result": "success"
+      },
+      {
+        "head": "7ad03882237a2fae11f2007a1941a8c49a1e996b",
+        "run": 38128555179,
+        "result": "success"
+      },
+      {
+        "head": "96c1c10bfeca340e5eee86451d2e8b49fbe56025",
+        "run": 38130451455,
+        "result": "success"
+      },
+      {
+        "head": "11779a5a43500d4663f2eaf89d7336725bfdda50",
+        "run": 38130539128,
+        "result": "success"
+      },
+      {
+        "head": "f13057d5bca2aa830b4a004a439ab9e0d9c66e45",
+        "run": 38131548505,
+        "result": "success"
+      },
+      {
+        "head": "941fd16a0f98a4dfd3609167c45c3b6be6ac105b",
+        "run": 38135472580,
+        "result": "success"
+      }
     ]
   },
   "evidence": [
@@ -93,19 +250,91 @@
     "Ed25519 host approval binds principal, credential, action, exact endpoint, payload, source, commit, event and validity window.",
     "Outbox persists exact content, claims once, records accepted/rejected/unknown, and never reclaims UNKNOWN.",
     "Real TCP peer read followed by acknowledgement loss produces UNKNOWN and no replay.",
-    "Independent SQLite connections and separate Node processes contend safely after BEGIN IMMEDIATE; only one claim can succeed."
-    ,"Disabled-by-default service dispatch sends exact authorized content through published OneBot and Satori adapters and persists their adapter message IDs."
-    ,"Formal Koishi middleware creates and resumes Discord story/participant identities across SQLite restart; sidecar journal replay is deduplicated by R1 Inbox."
-    ,"Manual scoped security audit found no high/critical issue; dependency audits reported zero known vulnerabilities. This is not a formal Codex Security artifact."
+    "Independent SQLite connections and separate Node processes contend safely after BEGIN IMMEDIATE; only one claim can succeed.",
+    "Disabled-by-default service dispatch sends exact authorized content through published OneBot and Satori adapters and persists their adapter message IDs.",
+    "Formal Koishi middleware creates and resumes Discord story/participant identities across SQLite restart; sidecar journal replay is deduplicated by R1 Inbox.",
+    "Manual scoped security audit found no high/critical issue; dependency audits reported zero known vulnerabilities. This is not a formal Codex Security artifact."
   ],
   "releaseBlockers": [
-    { "severity": "P1", "id": "MODEL_BEHAVIOR", "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened." },
-    { "severity": "P2", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; the completed audit is manual/source-backed, not a formal SARIF scan." },
-    { "severity": "P1", "id": "KOISHI_UPSTREAM_MODERATE", "detail": "The isolated Koishi runtime reports 12 moderate file-type/ASF parser advisories through the current Koishi HTTP dependency chain; high/critical count is zero and npm's proposed fix is a breaking Koishi downgrade, so it was not applied automatically." },
-    { "severity": "P0", "id": "MODEL_PROVIDER_SECRET", "detail": "The isolated runtime has no model provider endpoint/key/model selection. Discord inbound is real, but generating a genuine HDSI reply and running the four credentialed behavior tests requires this external credential/configuration." },
-    { "severity": "P0", "id": "LIVE_HOST_APPROVAL_WORKER", "detail": "The deployed runtime is deliberately stage-only. A separately keyed trusted-host review/signing worker must be configured before any real send can enter Authorized Outbox; direct adapter sending is forbidden." },
-    { "severity": "P1", "id": "REAL_RECIPIENT_EVIDENCE", "detail": "Real login, allowed-peer inbound, middleware traversal, durable identity creation and restart dedup are verified. Immediate, delayed and proactive recipient delivery remain unexecuted." },
-    { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "The deterministic 1000-event local soak passed; multi-hour VPS observation remains intentionally unclaimed." }
+    {
+      "severity": "P1",
+      "id": "MODEL_BEHAVIOR",
+      "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened."
+    },
+    {
+      "severity": "P2",
+      "id": "SECURITY_SCAN_ARTIFACT",
+      "detail": "The security skill package did not expose its required preflight references/helpers in this environment; the completed audit is manual/source-backed, not a formal SARIF scan."
+    },
+    {
+      "severity": "P1",
+      "id": "KOISHI_UPSTREAM_MODERATE",
+      "detail": "The isolated Koishi runtime reports 12 moderate file-type/ASF parser advisories through the current Koishi HTTP dependency chain; high/critical count is zero and npm's proposed fix is a breaking Koishi downgrade, so it was not applied automatically."
+    },
+    {
+      "severity": "P0",
+      "id": "MODEL_PROVIDER_SECRET",
+      "detail": "The isolated runtime has no model provider endpoint/key/model selection. Discord inbound is real, but generating a genuine HDSI reply and running the four credentialed behavior tests requires this external credential/configuration."
+    },
+    {
+      "severity": "P0",
+      "id": "LIVE_HOST_APPROVAL_WORKER",
+      "detail": "The deployed runtime is deliberately stage-only. A separately keyed trusted-host review/signing worker must be configured before any real send can enter Authorized Outbox; direct adapter sending is forbidden."
+    },
+    {
+      "severity": "P1",
+      "id": "REAL_RECIPIENT_EVIDENCE",
+      "detail": "Real login, allowed-peer inbound, middleware traversal, durable identity creation and restart dedup are verified. Immediate, delayed and proactive recipient delivery remain unexecuted."
+    },
+    {
+      "severity": "P2",
+      "id": "EXTENDED_SOAK",
+      "detail": "The deterministic 1000-event local soak passed; multi-hour VPS observation remains intentionally unclaimed."
+    }
   ],
-  "next": "Phase F is PARTIAL. Both isolated containers are running with restart=no and zero Outbox rows. Continue only after an owner-only model-provider Secret plus provider/model selection is available; then install the isolated signer/reviewer and use only the six-message bounded window."
+  "next": "Feature candidate archival closeout only. F3B live, F3C deployment and F4 recipient tests are DEFERRED_UNVERIFIED by user. Before attempting private release, revalidate current HEAD, source-to-image binding, secrets and rollback, then complete bounded live model and Discord end-to-end acceptance under new explicit authorization.",
+  "closeout20261011": {
+    "decision": "FEATURE_COMPLETE_CANDIDATE_AS_PROJECT_ASSESSMENT_ONLY",
+    "formalReleaseState": "PARTIAL",
+    "scope": "HDSI source-level feature work and credential-free verification; not production release",
+    "updatedAtUTC": "2026-10-11T13:45:26Z",
+    "sourceHeadAtLastVerifiedOfflineTests": "941fd16a0f98a4dfd3609167c45c3b6be6ac105b",
+    "runtimeCandidateSourceSHA256": "ba8ee427d6860467d8562b63ac99c6e9d4291484685f46e96b55f21318e585b2",
+    "runtimeCandidateImage": "hdsi-discord-f-koishi:941fd16-f3c2",
+    "runtimeCandidateImageId": "sha256:4ea669132c742c69744fb39fb7fae1e4321b77946d66c8b3f63d6db59a56b958",
+    "observedCurrentImages": {
+      "koishi": "hdsi-discord-f-koishi:f13057d",
+      "sidecar": "hdsi-discord-f-sidecar:96c1c10"
+    },
+    "verifiedOffline": {
+      "tests": 588,
+      "pass": 584,
+      "fail": 0,
+      "skip": 4,
+      "typecheck": "passed_at_previous_checkpoint",
+      "runtimeSyntax": "passed_current_readback"
+    },
+    "deferredByUser": [
+      {
+        "gate": "F3B_LIVE_MODEL",
+        "status": "DEFERRED_UNVERIFIED",
+        "actualModelRequestsInLastAttempt": 0
+      },
+      {
+        "gate": "F3C_RUNTIME_SWITCH",
+        "status": "DEFERRED_UNVERIFIED",
+        "candidateOnly": true
+      },
+      {
+        "gate": "F4_REAL_DISCORD_OUTBOUND",
+        "status": "DEFERRED_UNVERIFIED",
+        "actualSendAttemptsInHandoff": 0
+      }
+    ],
+    "authorization": "Current closeout only: repository record and safe checkpoint; no deployment, Discord sending, or model charging.",
+    "evidence": "Source inspection, prior local test execution, fresh image/container metadata and backup SHA256",
+    "independence": "Single operator and same VPS; GitHub CI separately passed on original base head, not on this closeout commit",
+    "openP0P1": "Existing releaseBlockers retained; deferral does not lower severity or mean PASS",
+    "outcome": "PARTIAL"
+  }
 }
