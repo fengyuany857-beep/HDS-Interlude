@@ -856,6 +856,14 @@ export class InterludeService extends Service {
     return this.r1ProposalReceipts.pending(storyId, participantId)
   }
 
+  /** Stage an existing Agency-approved canonical background event for host review; never sends. */
+  async prepareR1BackgroundReview(scriptEntryId: number, eventId: string,
+    evidence: ActionEvidence, now = new Date()): Promise<R1ProposalReceiptRow> {
+    if (!this.r1ProposalReceipts) throw new Error('R1_REVIEW_LEDGER_DISABLED')
+    await assertHostAuthorized(evidence)
+    return this.r1ProposalReceipts.openBackground(scriptEntryId, eventId, now)
+  }
+
   async rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow> {
     if (!this.r1ProposalReceipts) throw new Error('R1_REVIEW_LEDGER_DISABLED')
     return this.r1ProposalReceipts.reject(id, reason)

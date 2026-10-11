@@ -62,7 +62,8 @@ const execFileAsync = promisify(execFile)
 const trusted: R1ApprovalVerifier = async grant =>
   grant.approvalId === 'host-approved:001' && grant.principalId === 'trusted-host'
 
-async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalReceipts) {
+async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalReceipts,
+  mode: 'immediate' | 'delayed' = 'immediate') {
   const arrival = {
     storyId: 'outbox:story', participantId: 'outbox:alice', platform: 'onebot',
     endpointId: 'onebot:bot-account-1:private-alice', platformMessageId: 'platform-msg-01',
@@ -76,8 +77,10 @@ async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalRece
     storyId: arrival.storyId, participantId: arrival.participantId,
     inboxId, scriptEntryId, frameId: 'f', burstId: 'b', now,
     decision: {
-      script: '她回复“你好呀”。',
-      interaction: { seen: true, reply: { mode: 'immediate', content: '你好呀' } },
+      script: mode === 'immediate' ? '她回复“你好呀”。' : '她决定稍后回复“你好呀”。',
+      interaction: { seen: true, reply: {
+        mode, content: '你好呀', ...(mode === 'delayed' ? { sendAt: later(2_000).toISOString() } : {}),
+      } },
     },
   })
   const [receipt] = await reviews.open(proposal, now)
@@ -90,6 +93,7 @@ async function stageProposal(ctx: Context, box: R1Inbox, reviews: R1ProposalRece
     approvalId: 'host-approved:001',
     principalId: 'trusted-host', credentialId: 'test-key', signature: 'test-signature',
     actionClass: 'r1-private-text',
+    deliveryKind: mode,
     approvedAt: now, expiresAt: later(30_000),
   }
   return { receipt, approval }
@@ -216,23 +220,93 @@ test('R1 dispatcher sends exact persisted content once and records adapter accep
   })
 })
 
-test('R1 delivery lifecycle kind is host-signed, persisted and reaches the exact transport attempt', async () => {
-  for (const deliveryKind of ['immediate', 'delayed', 'proactive'] as const) {
-    await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
-      const { approval } = await stageProposal(ctx, box, reviews)
-      const auth = await outbox.authorize({ ...approval, deliveryKind }, now)
-      assert.equal(auth.deliveryKind, deliveryKind)
-      let observed = ''
-      const result = await new R1OutboxDispatcher(outbox, {
-        sendExact: async attempt => {
-          observed = attempt.deliveryKind
-          return { status: 'accepted', adapterMessageId: `adapter-${deliveryKind}` }
-        },
-      }).dispatch(auth.id, later(500))
-      assert.equal(observed, deliveryKind)
-      assert.equal(result.adapterMessageId, `adapter-${deliveryKind}`)
+test('R1 delivery lifecycle kind is derived from the reviewed event, persisted and reaches transport', async () => {
+  await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
+    const { approval } = await stageProposal(ctx, box, reviews)
+    await assert.rejects(() => outbox.authorize({ ...approval, deliveryKind: 'proactive' }, now),
+      /R1_OUTBOX_SOURCE_BINDING_FAILED/)
+    const auth = await outbox.authorize({ ...approval, deliveryKind: 'immediate' }, now)
+    let observed = ''
+    const result = await new R1OutboxDispatcher(outbox, {
+      sendExact: async attempt => {
+        observed = attempt.deliveryKind
+        return { status: 'accepted', adapterMessageId: 'adapter-immediate' }
+      },
+    }).dispatch(auth.id, later(500))
+    assert.equal(observed, 'immediate')
+    assert.equal(result.adapterMessageId, 'adapter-immediate')
+  })
+})
+
+test('R1 delayed reply cannot dispatch before due time and retains the exact authorized route', async () => {
+  await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
+    const { receipt, approval } = await stageProposal(ctx, box, reviews, 'delayed')
+    assert.equal(receipt.deliveryKind, 'delayed')
+    assert.equal(receipt.notBefore?.getTime(), later(2_000).getTime())
+    await assert.rejects(() => outbox.authorize(approval, now), /R1_OUTBOX_SOURCE_BINDING_FAILED/)
+    const dueApproval = {
+      ...approval, approvedAt: later(2_000), expiresAt: later(32_000),
+    }
+    const auth = await outbox.authorize(dueApproval, later(2_000))
+    assert.equal(auth.deliveryKind, 'delayed')
+    let route = ''
+    const result = await new R1OutboxDispatcher(outbox, {
+      sendExact: async attempt => {
+        route = `${attempt.platform}|${attempt.endpointId}|${attempt.content}|${attempt.deliveryKind}`
+        return { status: 'accepted', adapterMessageId: 'adapter-delayed' }
+      },
+    }).dispatch(auth.id, later(2_500))
+    assert.equal(route, `onebot|${approval.endpointId}|你好呀|delayed`)
+    assert.equal(result.status, 'accepted')
+  })
+})
+
+test('R1 proactive contact is derived only from an Agency-approved canonical script event', async () => {
+  await withDb(':memory:', trusted, async (ctx, _box, reviews, outbox) => {
+    const endpointId = 'discord-user:role-1:user-1'
+    await ctx.database.create('interlude_endpoint', {
+      id: endpointId, ownerKind: 'participant-user', ownerId: 'participant:discord',
+      channelKind: 'discord', platform: 'discord-user', accountKey: 'discord-user:role-1',
+      selfId: 'role-1', userId: 'user-1', conversationKind: 'private', enabled: true,
+      createdAt: now, updatedAt: now,
     })
-  }
+    const event = {
+      eventId: 'commit-proactive:e2', commitId: 'commit-proactive', kind: 'outgoing-message',
+      actor: 'protagonist', occurredAt: now.toISOString(), causedByEventIds: ['commit-proactive:e1'],
+      participantId: 'participant:discord', endpointId, content: '想起你了。', bubbles: ['想起你了。'],
+      deliveryMode: 'immediate', scriptBinding: { status: 'bound', spans: [{ bubbleIndex: 0, start: 4, end: 9 }] },
+    }
+    const entry = await ctx.database.create('interlude_script_entry', {
+      storyId: 'story:discord', participantId: '', kind: 'script', actor: 'narrator',
+      content: '她拿起手机，说“想起你了。”', occurredAt: now, createdAt: now,
+      metadata: {
+        phase: 'advance', commitId: 'commit-proactive', scriptEvents: [event],
+        approvedAutomaticOutgoingActions: [{ participantId: 'participant:discord', mode: 'immediate' }],
+      },
+    })
+    const receipt = await reviews.openBackground(entry.id, event.eventId, now)
+    assert.equal(receipt.deliveryKind, 'proactive')
+    const approval: R1ApprovalRequest = {
+      receiptId: receipt.id, storyId: receipt.storyId, participantId: receipt.participantId,
+      sourceInboxId: receipt.sourceInboxId, platform: 'discord-user', endpointId,
+      commitId: receipt.commitId, eventId: receipt.eventId, payloadHash: receipt.contentHash,
+      payloadContent: receipt.payloadContent, approvalId: 'host-approved:001', principalId: 'trusted-host',
+      credentialId: 'test-key', signature: 'test-signature', actionClass: 'r1-private-text',
+      deliveryKind: 'proactive', approvedAt: now, expiresAt: later(30_000),
+    }
+    await assert.rejects(() => outbox.authorize({ ...approval, endpointId: `${endpointId}:other` }, now),
+      /R1_OUTBOX_SOURCE_BINDING_FAILED/)
+    const auth = await outbox.authorize(approval, now)
+    let observed = ''
+    const settled = await new R1OutboxDispatcher(outbox, {
+      sendExact: async attempt => {
+        observed = `${attempt.platform}|${attempt.endpointId}|${attempt.content}|${attempt.deliveryKind}`
+        return { status: 'accepted', adapterMessageId: 'discord-adapter-1' }
+      },
+    }).dispatch(auth.id, later(500))
+    assert.equal(observed, `discord-user|${endpointId}|想起你了。|proactive`)
+    assert.equal(settled.status, 'accepted')
+  })
 })
 
 test('R1 ambiguous transport and restart in-flight recovery become UNKNOWN without resend', async () => {

@@ -58,10 +58,13 @@ test('real Koishi Session and SQLite: R1 observed Inbox yields only grounded pri
     assert.equal(outbound[0].scriptBinding?.status, 'bound')
     assert.equal((await app.database.get('interlude_script_entry', { storyId: arrival.storyId })).length, 1)
     await assert.rejects(() => prepareObservedCommit(app, { ...req, scriptEntryId: entryId, participantId: 'intruder' }), /R1_NOT_OBSERVED/)
-    await assert.rejects(() => prepareObservedCommit(app, {
+    const delayed = await prepareObservedCommit(app, {
       ...req, scriptEntryId: entryId,
-      decision: { ...req.decision, interaction: { seen: true, reply: { mode: 'delayed', content: '我在', sendAt: stamp.toISOString() } } },
-    }), /R1_DELAYED_ACTION_UNREVIEWED/)
+      decision: { ...req.decision, script: '她决定稍后说“我在”。', interaction: { seen: true, reply: { mode: 'delayed', content: '我在', sendAt: new Date(stamp.getTime() + 30_000).toISOString() } } },
+    })
+    const delayedEvent = delayed.commit.events.find(x => x.kind === 'outgoing-message')
+    assert.equal(delayedEvent?.deliveryMode, 'delayed')
+    assert.equal(delayedEvent?.scriptBinding?.status, 'future')
     await assert.rejects(() => prepareObservedCommit(app, {
       ...req, scriptEntryId: entryId,
       decision: { ...req.decision, interaction: { seen: true, reply: { mode: 'immediate', content: '没有写在剧本中的句子' } } },

@@ -58,7 +58,6 @@ export async function prepareObservedCommit(ctx: Context, request: ObservedCommi
   if (decision.crossConversationActions?.length || decision.intents?.length || decision.browserIntents?.length
     || decision.followUpCommitment || decision.localMedia || decision.nativeFace
     || decision.messageReactions?.length) throw Error('R1_UNREVIEWED_ACTION')
-  if (decision.interaction?.reply?.mode === 'delayed') throw Error('R1_DELAYED_ACTION_UNREVIEWED')
   const commit = decisionToScriptCommit({
     storyId: request.storyId, participantId: request.participantId,
     phase: 'user-message', from: new Date(received), now: request.now,
@@ -72,7 +71,8 @@ export async function prepareObservedCommit(ctx: Context, request: ObservedCommi
     }
     if (isOutgoingScriptEvent(event)
       && (event.kind !== 'outgoing-message' || event.participantId !== request.participantId
-        || event.deliveryMode !== 'immediate' || event.scriptBinding?.status !== 'bound')) {
+        || !['immediate', 'delayed'].includes(event.deliveryMode!)
+        || event.scriptBinding?.status !== (event.deliveryMode === 'immediate' ? 'bound' : 'future'))) {
       throw Error('R1_UNBOUND_DELIVERY')
     }
   }

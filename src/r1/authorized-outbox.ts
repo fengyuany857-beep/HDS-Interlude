@@ -178,16 +178,21 @@ export class R1AuthorizedOutbox {
     await this.ensureTables()
     return this.transaction(async tx => {
       const review = (await tx.get('interlude_r1_proposal_receipt', { id: request.receiptId }))[0] as R1ProposalReceiptRow | undefined
-      const source = (await tx.get('interlude_r1_inbox', { id: request.sourceInboxId }))[0] as R1InboxRow | undefined
+      const source = review?.sourceKind === 'background' ? undefined
+        : (await tx.get('interlude_r1_inbox', { id: request.sourceInboxId }))[0] as R1InboxRow | undefined
       if (!review
         || review.storyId !== request.storyId || review.participantId !== request.participantId
         || review.sourceInboxId !== request.sourceInboxId
         || review.commitId !== request.commitId || review.eventId !== request.eventId
         || review.contentHash !== request.payloadHash || review.payloadContent !== request.payloadContent
-        || !source || source.status !== 'observed'
-        || source.scriptEntryId !== review.sourceScriptEntryId
-        || source.storyId !== request.storyId || source.participantId !== request.participantId
-        || source.endpointId !== request.endpointId || source.platform !== request.platform) {
+        || (review.deliveryKind ?? 'immediate') !== (request.deliveryKind ?? 'immediate')
+        || (review.notBefore && n < review.notBefore.getTime())
+        || (review.sourceKind === 'background'
+          ? review.endpointId !== request.endpointId || review.platform !== request.platform
+          : !source || source.status !== 'observed'
+            || source.scriptEntryId !== review.sourceScriptEntryId
+            || source.storyId !== request.storyId || source.participantId !== request.participantId
+            || source.endpointId !== request.endpointId || source.platform !== request.platform)) {
         throw Error('R1_OUTBOX_SOURCE_BINDING_FAILED')
       }
       const prior = (await tx.get('interlude_r1_outbox', { id: request.receiptId }))[0]
@@ -210,7 +215,9 @@ export class R1AuthorizedOutbox {
       if (transitioned.matched !== 1) throw Error('R1_OUTBOX_REVIEW_CAS_CONFLICT')
       const row: R1OutboxRow = {
         id: review.id, storyId: review.storyId, participantId: review.participantId,
-        sourceInboxId: review.sourceInboxId, platform: source.platform, endpointId: source.endpointId,
+        sourceInboxId: review.sourceInboxId,
+        platform: review.sourceKind === 'background' ? review.platform! : source!.platform,
+        endpointId: review.sourceKind === 'background' ? review.endpointId! : source!.endpointId,
         commitId: review.commitId, eventId: review.eventId, payloadHash: review.contentHash,
         payloadContent: review.payloadContent, deliveryKind: request.deliveryKind ?? 'immediate',
         approvalId: request.approvalId, principalId: request.principalId,
