@@ -16,6 +16,7 @@ export interface R1OutboxRow {
     eventId: string;
     payloadHash: string;
     payloadContent: string;
+    deliveryKind?: 'immediate' | 'delayed' | 'proactive';
     approvalId: string;
     principalId: string;
     credentialId: string;
@@ -62,6 +63,7 @@ export interface R1ApprovalRequest {
     credentialId: string;
     signature: string;
     actionClass: 'r1-private-text';
+    deliveryKind?: 'immediate' | 'delayed' | 'proactive';
     approvedAt: Date;
     expiresAt: Date;
 }

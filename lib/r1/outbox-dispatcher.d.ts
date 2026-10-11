@@ -4,6 +4,7 @@ export interface R1TransportAttempt {
     platform: string;
     endpointId: string;
     content: string;
+    deliveryKind: 'immediate' | 'delayed' | 'proactive';
 }
 export type R1TransportResult = {
     status: 'accepted';

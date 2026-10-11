@@ -21,6 +21,7 @@ export interface R1OutboxRow {
   eventId: string
   payloadHash: string
   payloadContent: string
+  deliveryKind?: 'immediate' | 'delayed' | 'proactive'
   approvalId: string
   principalId: string
   credentialId: string
@@ -59,6 +60,7 @@ export function registerR1OutboxTables(ctx: Context): void {
     id: 'string(64)', storyId: 'string(255)', participantId: 'string(255)',
     sourceInboxId: 'string(64)', platform: 'string(63)', endpointId: 'string(127)',
     commitId: 'string(100)', eventId: 'string(120)', payloadHash: 'string(64)', payloadContent: 'text',
+    deliveryKind: 'string(16)',
     approvalId: 'string(128)', principalId: 'string(128)', credentialId: 'string(128)', status: 'string(20)',
     revision: 'unsigned', approvedAt: 'timestamp', expiresAt: 'timestamp',
     updatedAt: 'timestamp', attemptId: 'string(64)', attemptAt: 'timestamp',
@@ -89,6 +91,7 @@ export interface R1ApprovalRequest {
   credentialId: string
   signature: string
   actionClass: 'r1-private-text'
+  deliveryKind?: 'immediate' | 'delayed' | 'proactive'
   approvedAt: Date
   expiresAt: Date
 }
@@ -162,6 +165,7 @@ export class R1AuthorizedOutbox {
     if (!Number.isFinite(a) || !Number.isFinite(e) || !Number.isFinite(n)
       || e! <= a! || e! - a! > 60_000 || a! > n || e! <= n
       || request.actionClass !== 'r1-private-text'
+      || request.deliveryKind !== undefined && !['immediate', 'delayed', 'proactive'].includes(request.deliveryKind)
       || !request.receiptId || !request.principalId || !request.approvalId
       || !request.credentialId || !request.signature
       || !request.storyId || !request.participantId || !request.endpointId
@@ -192,6 +196,7 @@ export class R1AuthorizedOutbox {
         if (prior.approvalId !== request.approvalId || prior.principalId !== request.principalId
           || prior.credentialId !== request.credentialId
           || prior.endpointId !== request.endpointId || prior.payloadHash !== request.payloadHash
+          || (prior.deliveryKind ?? 'immediate') !== (request.deliveryKind ?? 'immediate')
           || prior.payloadContent !== request.payloadContent
           || prior.expiresAt.getTime() !== e) throw Error('R1_OUTBOX_APPROVAL_REPLAY_CONFLICT')
         return prior
@@ -207,7 +212,7 @@ export class R1AuthorizedOutbox {
         id: review.id, storyId: review.storyId, participantId: review.participantId,
         sourceInboxId: review.sourceInboxId, platform: source.platform, endpointId: source.endpointId,
         commitId: review.commitId, eventId: review.eventId, payloadHash: review.contentHash,
-        payloadContent: review.payloadContent,
+        payloadContent: review.payloadContent, deliveryKind: request.deliveryKind ?? 'immediate',
         approvalId: request.approvalId, principalId: request.principalId,
         credentialId: request.credentialId,
         status: 'authorized', revision: 1, approvedAt: request.approvedAt,

@@ -13,7 +13,7 @@ export function r1ApprovalSigningBytes(request: Omit<R1ApprovalRequest, 'signatu
     'hdsi-r1-approval-v1', request.receiptId, request.storyId, request.participantId,
     request.sourceInboxId, request.platform, request.endpointId, request.commitId,
     request.eventId, request.payloadHash, request.payloadContent, request.approvalId, request.principalId,
-    request.credentialId, request.actionClass, request.approvedAt.toISOString(),
+    request.credentialId, request.actionClass, request.deliveryKind ?? 'immediate', request.approvedAt.toISOString(),
     request.expiresAt.toISOString(),
   ]))
 }

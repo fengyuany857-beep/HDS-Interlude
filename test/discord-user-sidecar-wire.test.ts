@@ -117,7 +117,7 @@ test('Discord user sidecar -> published Satori adapter -> R1 Inbox and scoped ou
       sourceInboxId: review.sourceInboxId, platform: 'discord-user', endpointId: `discord-user:${ROLE}:${PEER}`,
       commitId: review.commitId, eventId: review.eventId, payloadHash: review.contentHash,
       payloadContent: review.payloadContent, approvalId: 'discord-wire-approval',
-      principalId: 'trusted-test-host', credentialId: 'discord-wire-key', actionClass: 'r1-private-text',
+      principalId: 'trusted-test-host', credentialId: 'discord-wire-key', actionClass: 'r1-private-text', deliveryKind: 'immediate',
       approvedAt: now, expiresAt: new Date(now.getTime() + 30_000),
     }
     const approval = { ...unsigned, signature: sign(null, r1ApprovalSigningBytes(unsigned), privateKey).toString('base64') }

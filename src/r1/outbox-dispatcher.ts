@@ -5,6 +5,7 @@ export interface R1TransportAttempt {
   platform: string
   endpointId: string
   content: string
+  deliveryKind: 'immediate' | 'delayed' | 'proactive'
 }
 
 export type R1TransportResult =
@@ -25,6 +26,7 @@ export class R1OutboxDispatcher {
       const result = await this.transport.sendExact({
         attemptId: claim.attemptId!, platform: claim.platform,
         endpointId: claim.endpointId, content: claim.payloadContent,
+        deliveryKind: claim.deliveryKind ?? 'immediate',
       })
       if (result.status === 'accepted') {
         if (!result.adapterMessageId?.trim()) throw Error('R1_TRANSPORT_INVALID_ACCEPTANCE')

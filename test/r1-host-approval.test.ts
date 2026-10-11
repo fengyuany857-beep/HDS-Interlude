@@ -33,6 +33,7 @@ test('trusted host Ed25519 approval binds identity, endpoint, payload, action an
     { ...approval, payloadHash: '0'.repeat(64) },
     { ...approval, payloadContent: 'changed message' },
     { ...approval, actionClass: 'r1-private-text-other' as any },
+    { ...approval, deliveryKind: 'proactive' as const },
     { ...approval, expiresAt: new Date('2026-10-10T12:00:31Z') },
     { ...approval, principalId: 'model' },
     { ...approval, credentialId: 'unknown-key' },

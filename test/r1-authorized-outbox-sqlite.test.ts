@@ -210,10 +210,29 @@ test('R1 dispatcher sends exact persisted content once and records adapter accep
     assert.equal(result.status, 'accepted')
     assert.deepEqual(calls, [{
       attemptId: result.attemptId, platform: approval.platform,
-      endpointId: approval.endpointId, content: approval.payloadContent,
+      endpointId: approval.endpointId, content: approval.payloadContent, deliveryKind: 'immediate',
     }])
     await assert.rejects(() => outbox.claim(auth.id, later(1_000)), /R1_OUTBOX_NOT_CLAIMABLE/)
   })
+})
+
+test('R1 delivery lifecycle kind is host-signed, persisted and reaches the exact transport attempt', async () => {
+  for (const deliveryKind of ['immediate', 'delayed', 'proactive'] as const) {
+    await withDb(':memory:', trusted, async (ctx, box, reviews, outbox) => {
+      const { approval } = await stageProposal(ctx, box, reviews)
+      const auth = await outbox.authorize({ ...approval, deliveryKind }, now)
+      assert.equal(auth.deliveryKind, deliveryKind)
+      let observed = ''
+      const result = await new R1OutboxDispatcher(outbox, {
+        sendExact: async attempt => {
+          observed = attempt.deliveryKind
+          return { status: 'accepted', adapterMessageId: `adapter-${deliveryKind}` }
+        },
+      }).dispatch(auth.id, later(500))
+      assert.equal(observed, deliveryKind)
+      assert.equal(result.adapterMessageId, `adapter-${deliveryKind}`)
+    })
+  }
 })
 
 test('R1 ambiguous transport and restart in-flight recovery become UNKNOWN without resend', async () => {
