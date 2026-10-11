@@ -532,6 +532,8 @@ export declare class InterludeService extends Service {
     transitionR1Attention(storyId: string, event: AttentionEvent, now?: Date): Promise<R1AttentionRow>;
     /** Review queue proves only a proposal was recorded; it never claims delivery. */
     pendingR1Review(storyId: string, participantId: string): Promise<R1ProposalReceiptRow[]>;
+    /** Stage an existing Agency-approved canonical background event for host review; never sends. */
+    prepareR1BackgroundReview(scriptEntryId: number, eventId: string, evidence: ActionEvidence, now?: Date): Promise<R1ProposalReceiptRow>;
     rejectR1Proposal(id: string, reason: string): Promise<R1ProposalReceiptRow>;
     /** Authenticate an exact host-signed approval and atomically create its durable Outbox row. */
     authorizeR1Proposal(request: R1ApprovalRequest, now?: Date): Promise<R1OutboxRow>;
