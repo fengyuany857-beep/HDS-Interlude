@@ -85,6 +85,9 @@ function inventedThirdPartySpeaker(script: string): string | undefined {
     const subject = match[1]
     if (/^(?:她|他|我|你|主角|对方)$/.test(subject)) continue
     if (/(?:前天|昨天|今天|明天|刚才|之前|之后|到时|准时|一会儿|晚饭前|睡前|正想|想着|要不要|决定|打算)/.test(subject)) continue
+    // A Chinese speaker noun/name does not contain the aspect, modal,
+    // temporal or linking morphemes that make these frequent verb phrases.
+    if (/[觉想像在要正还就才又都也很更来去把被让给跟和的了着过前后时会能可]/.test(subject)) continue
     return match[0].trim()
   }
   return undefined
@@ -166,4 +169,6 @@ test('third-party invention detector rejects speakers but not temporal clauses',
   assert.equal(inventedThirdPartySpeaker('她前天还说想吃面。'), undefined)
   assert.equal(inventedThirdPartySpeaker('她决定晚饭前准时来问。'), undefined)
   assert.equal(inventedThirdPartySpeaker('她正想着要不要问。'), undefined)
+  assert.equal(inventedThirdPartySpeaker('她觉得像在说梦话。'), undefined)
+  assert.equal(inventedThirdPartySpeaker('李明问她要不要出门。'), '李明问')
 })
