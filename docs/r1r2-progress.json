@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T07:54:00Z",
+  "updatedAt": "2026-10-11T09:06:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
   "evaluatedHead": "f34dad8e1f3ab305a593f63e5be373d20d374192",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
@@ -88,9 +88,10 @@
   "releaseBlockers": [
     { "severity": "P1", "id": "MODEL_BEHAVIOR", "detail": "Four production model behavior tests remain SKIP because no endpoint/key/model credentials are configured; they were not removed or weakened." },
     { "severity": "P2", "id": "SECURITY_SCAN_ARTIFACT", "detail": "The security skill package did not expose its required preflight references/helpers in this environment; the completed audit is manual/source-backed, not a formal SARIF scan." },
-    { "severity": "P0", "id": "PHASE_F_EXTERNAL_AUTHORIZATION", "detail": "PRIVATE_DEPLOYED_VERIFIED requires fresh bounded authorization for exact Discord accounts, credentials, isolated VPS target and real message actions." },
+    { "severity": "P0", "id": "PHASE_F_VPS_ACCESS", "detail": "Phase F execution was authorized, but the controlled workspace rejected project instance-X6fwAZMl as missing or disabled (VCW_ACCESS_APPROVAL_STALE). No SSH alias or alternative authorized route exists; the only observable project is unrelated vcw-acceptance and was not touched." },
+    { "severity": "P0", "id": "PHASE_F_SECRET", "detail": "No VPS-only Discord Secret file has been provisioned or verified. No token was requested in chat, read, logged or used." },
     { "severity": "P1", "id": "REAL_RECIPIENT_EVIDENCE", "detail": "No real Discord login, recipient delivery, restart recovery, delayed delivery or proactive contact has been executed." },
     { "severity": "P2", "id": "EXTENDED_SOAK", "detail": "The deterministic 1000-event local soak passed; multi-hour VPS observation remains intentionally unclaimed." }
   ],
-  "next": "All currently executable no-credential work is complete. Request one bounded Phase F authorization covering exact accounts, isolated VPS resources, permitted test messages and rollback window; do not mark PRIVATE_DEPLOYED_VERIFIED before direct recipient and VPS verification."
+  "next": "Register or enable instance-X6fwAZMl in the VPS Coding Workspace control plane (or provide another explicit authorized access route) and provision the owner-only Secret file on that target. Resume with read-only capacity/name/port checks; do not use the unrelated vcw-acceptance project."
 }
