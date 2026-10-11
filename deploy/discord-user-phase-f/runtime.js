@@ -39,7 +39,7 @@ app.plugin(hdsi, {
       mode: 'deepseek-official', protocol: 'chat-completions',
       endpoint: 'https://api.deepseek.com/v1/chat/completions', apiKey: modelKey,
       model: 'deepseek-flash', deepseekThinking: 'disabled',
-      temperature: 0.8, topP: 1, maxTokens: 4096, timeout: 60000,
+      temperature: 0.3, topP: 1, maxTokens: 4096, timeout: 60000,
       responseFormat: 'json-object', extraHeaders: '', extraBody: '',
       useForMain: true, useForCompaction: true, useForAlter: true,
       useForEmbedding: false, useForStickers: false, useForVision: false,
