@@ -25,3 +25,5 @@ credentials.*
 backup/
 dustbin/
 release/smoke-*/
+__pycache__/
+*.py[cod]
