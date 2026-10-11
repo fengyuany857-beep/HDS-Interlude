@@ -27,3 +27,4 @@ dustbin/
 release/smoke-*/
 __pycache__/
 *.py[cod]
+sidecar/discord-user/wheelhouse/

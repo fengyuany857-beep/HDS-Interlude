@@ -1,0 +1,7 @@
+__pycache__
+*.py[cod]
+test_*.py
+mock_server.py
+*.sqlite3
+*.log
+
