@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, Protocol
+from .journal import EventJournal
 
 SNOWFLAKE = re.compile(r"^[1-9][0-9]{5,24}$")
 PLATFORM = "discord-user"
@@ -65,10 +66,11 @@ class BridgeCore:
     durable inbound deduplication; this layer preserves the remote message ID.
     """
 
-    def __init__(self, config: BridgeConfig, transport: DiscordTransport):
+    def __init__(self, config: BridgeConfig, transport: DiscordTransport, journal: EventJournal | None = None):
         self.config = config
         self.transport = transport
         self._sinks: set[EventSink] = set()
+        self.journal = journal
         self._serial = 1
         self._lock = asyncio.Lock()
 
@@ -87,6 +89,12 @@ class BridgeCore:
 
     def remove_sink(self, sink: EventSink) -> None:
         self._sinks.discard(sink)
+
+    async def replay_to(self, sink: EventSink) -> None:
+        if self.journal is None:
+            return
+        for event in self.journal.events():
+            await sink(event)
 
     async def accept_inbound(self, message: InboundMessage) -> bool:
         if not message.is_direct or message.author_is_self:
@@ -116,6 +124,10 @@ class BridgeCore:
                     "timestamp": int(message.occurred_at.astimezone(timezone.utc).timestamp() * 1000),
                 },
             }
+            if self.journal is not None:
+                event, inserted = self.journal.append(message_id, event)
+                if not inserted:
+                    return True
             sinks = tuple(self._sinks)
         for sink in sinks:
             await sink(event)

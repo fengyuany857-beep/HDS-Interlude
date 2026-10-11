@@ -5,7 +5,7 @@ import asyncio
 import os
 from datetime import datetime, timezone
 from aiohttp import web
-from hdsi_discord_sidecar import BridgeConfig, BridgeCore, InboundMessage
+from hdsi_discord_sidecar import BridgeConfig, BridgeCore, EventJournal, InboundMessage
 from hdsi_discord_sidecar.server import create_app
 
 
@@ -29,7 +29,7 @@ class MockTransport:
 async def main() -> None:
     role, peer = os.environ["HDSI_TEST_ROLE_ID"], os.environ["HDSI_TEST_PEER_ID"]
     channel, token = os.environ["HDSI_TEST_CHANNEL_ID"], os.environ["HDSI_TEST_BRIDGE_TOKEN"]
-    core = BridgeCore(BridgeConfig(role, peer, token), MockTransport(peer, channel))
+    core = BridgeCore(BridgeConfig(role, peer, token), MockTransport(peer, channel), EventJournal(":memory:"))
     app = create_app(core)
 
     async def inject(request: web.Request) -> web.Response:

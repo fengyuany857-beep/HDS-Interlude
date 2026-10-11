@@ -25,7 +25,7 @@ def create_app(core: BridgeCore) -> web.Application:
             if not ws.closed:
                 await ws.send_json({"op": 0, "body": body})
 
-        core.add_sink(emit)
+        identified = False
         try:
             async for message in ws:
                 if message.type != WSMsgType.TEXT:
@@ -43,11 +43,16 @@ def create_app(core: BridgeCore) -> web.Application:
                         await ws.close(code=1008, message=b"invalid identify token")
                         break
                     await ws.send_json({"op": 4, "body": {"logins": [core.login], "proxy_urls": []}})
+                    if not identified:
+                        identified = True
+                        core.add_sink(emit)
+                        await core.replay_to(emit)
                 else:
                     await ws.close(code=1008, message=b"unsupported opcode")
                     break
         finally:
-            core.remove_sink(emit)
+            if identified:
+                core.remove_sink(emit)
         return ws
 
     async def private_channel(request: web.Request) -> web.Response:

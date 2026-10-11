@@ -8,7 +8,7 @@ from pathlib import Path
 
 from aiohttp import web
 
-from hdsi_discord_sidecar import BridgeConfig, BridgeCore
+from hdsi_discord_sidecar import BridgeConfig, BridgeCore, EventJournal
 from hdsi_discord_sidecar.discord_transport import DiscordUserTransport
 from hdsi_discord_sidecar.server import create_app
 
@@ -30,8 +30,11 @@ async def main() -> None:
     bridge_token = read_secret("HDSI_BRIDGE_TOKEN")
     discord_token = read_secret("HDSI_DISCORD_TOKEN")
     port = int(os.environ.get("HDSI_BRIDGE_PORT", "5140"))
+    state_dir = Path(os.environ.get("HDSI_SIDECAR_STATE_DIR", "/var/lib/hdsi-discord"))
+    state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     transport = DiscordUserTransport(role, peer)
-    core = BridgeCore(BridgeConfig(role, peer, bridge_token), transport)
+    journal = EventJournal(state_dir / "inbound.sqlite3")
+    core = BridgeCore(BridgeConfig(role, peer, bridge_token), transport, journal)
     transport.core = core
     runner = web.AppRunner(create_app(core), access_log=None)
     await runner.setup()
@@ -42,6 +45,7 @@ async def main() -> None:
     finally:
         await transport.close()
         await runner.cleanup()
+        journal.close()
 
 
 if __name__ == "__main__":

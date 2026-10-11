@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { generateKeyPairSync, sign } from 'node:crypto'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 import { App } from 'koishi'
 import { SQLiteDriver } from '@minatojs/driver-sqlite'
@@ -11,6 +14,7 @@ import { R1ProposalReceipts, registerR1ProposalReceiptTable } from '../src/r1/pr
 import { R1AuthorizedOutbox, registerR1OutboxTables, type R1ApprovalRequest } from '../src/r1/authorized-outbox'
 import { createR1HostApprovalVerifier, r1ApprovalSigningBytes } from '../src/r1/host-approval'
 import { createTurnEngine } from '../src/turn-engine'
+import * as hdsiPlugin from '../src/index'
 
 const ROLE = '100000000000000001', PEER = '200000000000000002'
 const CHANNEL = '300000000000000003', MESSAGE = '400000000000000004'
@@ -132,3 +136,71 @@ test('Discord user sidecar -> published Satori adapter -> R1 Inbox and scoped ou
     await app.stop(); await stopSidecar(sidecar.child)
   }
 })
+
+test('formal HDSI middleware auto-creates and resumes one Discord story across database restart', async () => {
+  const sidecar = await startSidecar()
+  const endpoint = `http://127.0.0.1:${sidecar.port}`
+  const databasePath = join(mkdtempSync(join(tmpdir(), 'hdsi-discord-story-')), 'story.sqlite3')
+  const previous = process.env.HDSI_R1_PRIVATE_INBOX
+  process.env.HDSI_R1_PRIVATE_INBOX = 'stage-only'
+  const inject = (messageId: string, content: string) => fetch(`${endpoint}/__test/inbound`, {
+    method: 'POST', headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ role_account_id: ROLE, author_user_id: PEER, dm_channel_id: CHANNEL,
+      remote_message_id: messageId, content, is_direct: true, author_is_self: false }),
+  })
+  const start = async () => {
+    const app = new App()
+    const httpModule = require('@koishijs/plugin-http') as any
+    const adapterModule = require('@koishijs/plugin-adapter-satori') as any
+    app.plugin(httpModule.default ?? httpModule)
+    app.plugin(SQLiteDriver, { path: databasePath })
+    app.plugin(adapterModule.default ?? adapterModule, { endpoint, token: TOKEN, retryTimes: 0 })
+    app.plugin(hdsiPlugin, {
+      storyDefaults: { characterName: 'Discord Role', characterProfile: 'isolated test role' },
+      model: {}, onebot: { enabled: false }, sharedStory: {},
+      runtime: { autoCreate: true, captureDirectMessages: true, ignoreCommandMessages: true },
+    } as any)
+    await app.start(); await new Promise(resolve => setTimeout(resolve, 100))
+    return app
+  }
+  let first: App | undefined
+  let second: App | undefined
+  try {
+    first = await start()
+    assert.deepEqual(await (await inject('410000000000000004', 'first turn')).json(), { accepted: true })
+    await waitFor(async () => (await first!.database.get('interlude_r1_inbox', {})).length === 1)
+    const stories = await first.database.get('interlude_story', {})
+    const participants = await first.database.get('interlude_participant', {})
+    assert.equal(stories.length, 1); assert.equal(stories[0].platform, 'discord-user')
+    assert.equal(stories[0].selfId, ROLE)
+    assert.equal(participants.length, 1); assert.equal(participants[0].userId, PEER)
+    const storyId = stories[0].id, participantId = participants[0].id
+    await first.stop(); first = undefined
+
+    second = await start()
+    assert.deepEqual(await (await inject('420000000000000004', 'second turn')).json(), { accepted: true })
+    await waitFor(async () => (await second!.database.get('interlude_r1_inbox', {})).length === 2)
+    const restoredStories = await second.database.get('interlude_story', {})
+    const restoredParticipants = await second.database.get('interlude_participant', {})
+    assert.deepEqual(restoredStories.map(row => row.id), [storyId])
+    assert.deepEqual(restoredParticipants.map(row => row.id), [participantId])
+    const inboxRows = await second.database.get('interlude_r1_inbox', {}, { sort: { receivedAt: 'asc' } })
+    assert.deepEqual(inboxRows.map(row => row.storyId), [storyId, storyId])
+    assert.deepEqual(inboxRows.map(row => row.participantId), [participantId, participantId])
+  } finally {
+    if (first) await first.stop()
+    if (second) await second.stop()
+    await stopSidecar(sidecar.child)
+    if (previous === undefined) delete process.env.HDSI_R1_PRIVATE_INBOX
+    else process.env.HDSI_R1_PRIVATE_INBOX = previous
+  }
+})
+
+async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (await predicate()) return
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  throw new Error('condition timeout')
+}

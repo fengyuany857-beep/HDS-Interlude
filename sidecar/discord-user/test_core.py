@@ -1,8 +1,9 @@
 import asyncio
 import unittest
+import tempfile
 from datetime import datetime, timezone
 
-from hdsi_discord_sidecar import BridgeConfig, BridgeCore, InboundMessage
+from hdsi_discord_sidecar import BridgeConfig, BridgeCore, EventJournal, InboundMessage
 
 
 ROLE = "100000000000000001"
@@ -69,6 +70,32 @@ class BridgeCoreTest(unittest.IsolatedAsyncioTestCase):
             BridgeConfig(ROLE, PEER, "short")
         self.assertTrue(self.core.config.authorizes(f"Bearer {TOKEN}"))
         self.assertFalse(self.core.config.authorizes(f"Bearer {TOKEN}x"))
+
+    async def test_no_subscriber_replays_after_reconnect_and_restart_without_duplicate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = f"{directory}/events.sqlite3"
+            journal = EventJournal(path)
+            core = BridgeCore(BridgeConfig(ROLE, PEER, TOKEN), self.transport, journal)
+            event = InboundMessage(ROLE, PEER, CHANNEL, MESSAGE, "offline message",
+                                   datetime(2026, 10, 11, tzinfo=timezone.utc))
+            self.assertTrue(await core.accept_inbound(event))
+            first = []
+            await core.replay_to(lambda body: _capture(first, body))
+            self.assertEqual([item["sn"] for item in first], [2])
+            self.assertTrue(await core.accept_inbound(event))
+            self.assertEqual(len(journal.events()), 1)
+            journal.close()
+            restored = EventJournal(path)
+            second = []
+            await BridgeCore(BridgeConfig(ROLE, PEER, TOKEN), self.transport, restored).replay_to(
+                lambda body: _capture(second, body)
+            )
+            self.assertEqual(second, first)
+            restored.close()
+
+
+async def _capture(target, body):
+    target.append(body)
 
 
 if __name__ == "__main__":

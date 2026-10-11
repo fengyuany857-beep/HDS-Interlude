@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-11T07:05:00Z",
+  "updatedAt": "2026-10-11T08:00:00Z",
   "branch": "hdsi-r1r2-core-graft-20261011",
   "evaluatedHead": "e7f60da126ca9b7c1220926786718f5383ebad0b",
   "targetState": "PRIVATE_DEPLOYED_VERIFIED",
@@ -13,7 +13,7 @@
     "E_release_audit": "partial"
   },
   "discordUserBridge": {
-    "phase": "B_MOCK_E2E_VERIFIED",
+    "phase": "C_MIDDLEWARE_PERSISTENCE_VERIFIED",
     "verified": [
       "Google Drive source TXT read as design input, not deployment evidence.",
       "discord.py-self 2.1.0 installed in an isolated environment; Python compatibility, MIT license and required client/DM/error interfaces inspected.",
@@ -22,24 +22,26 @@
       "Unknown peer and wrong DM targets failed closed; exact mock outbound used the adapter Bot contract.",
       "Discord endpoint rows now retain channelKind=discord instead of being projected as QQ.",
       "The process E2E now carries the inbound row through R1 observation, grounded ScriptCommit proposal, Ed25519 host approval, durable Authorized Outbox and exact sidecar DM dispatch receipt."
+      ,"The formal plugin middleware auto-creates a Discord story and participant, then resumes the same identities from file SQLite after process restart."
+      ,"The sidecar persists inbound events before delivery, replays stable Satori sequence numbers after reconnect/restart, and deduplicates repeated Discord message IDs."
     ],
     "notVerified": [
       "No real Discord login, API call or message.",
       "No VPS deployment or long-running service.",
       "The production transport has only static/import validation; no Discord Gateway connectivity was attempted.",
-      "Full HDSI automatic story/participant creation and delayed/proactive persistence/fault tests remain."
+      "Delayed/proactive Authorized Outbox persistence and fault tests remain."
     ],
     "localVerification": {
       "nodeTests": 581,
       "nodePassed": 577,
       "nodeFailed": 0,
       "nodeSkipped": 4,
-      "pythonTests": 3,
-      "pythonPassed": 3,
+      "pythonTests": 4,
+      "pythonPassed": 4,
       "typecheck": "passed",
       "build": "passed"
     },
-    "next": "Run Discord sessions through real HDSI story/participant creation and ScriptCommit, then bind signed Authorized Outbox dispatch and persistence/restart behavior to the sidecar."
+    "next": "Verify immediate, delayed and proactive Discord deliveries all originate from durable signed Authorized Outbox rows, including restart and UNKNOWN isolation."
   },
   "verified": {
     "local": {
