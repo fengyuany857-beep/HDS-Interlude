@@ -80,11 +80,11 @@ const scenarios = [
 ]
 
 function inventedThirdPartySpeaker(script: string): string | undefined {
-  const matches = script.matchAll(/(?:^|[，。！？；\s])([\p{Script=Han}]{1,6})(?:说|问|回复|发来|发消息|发了一句)/gu)
+  const matches = script.matchAll(/(?:^|[，。！？；\s])([\p{Script=Han}]{1,4})(?:说|问|回复|发来|发消息|发了一句)/gu)
   for (const match of matches) {
     const subject = match[1]
     if (/^(?:她|他|我|你|主角|对方)$/.test(subject)) continue
-    if (/(?:前天|昨天|今天|明天|刚才|之前|之后|到时|准时|一会儿|晚饭前|睡前)/.test(subject)) continue
+    if (/(?:前天|昨天|今天|明天|刚才|之前|之后|到时|准时|一会儿|晚饭前|睡前|正想|想着|要不要|决定|打算)/.test(subject)) continue
     return match[0].trim()
   }
   return undefined
@@ -165,4 +165,5 @@ test('third-party invention detector rejects speakers but not temporal clauses',
   assert.equal(inventedThirdPartySpeaker('朋友回复了她。'), '朋友回复')
   assert.equal(inventedThirdPartySpeaker('她前天还说想吃面。'), undefined)
   assert.equal(inventedThirdPartySpeaker('她决定晚饭前准时来问。'), undefined)
+  assert.equal(inventedThirdPartySpeaker('她正想着要不要问。'), undefined)
 })
