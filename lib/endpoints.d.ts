@@ -54,6 +54,7 @@ export declare function deriveParticipantUserEndpoint(participant: {
     platform: string;
     selfId: string;
     userId: string;
+    channelId?: string;
 }, now?: Date): EndpointRow;
 /** 迁移派生：群规则的群端点。群端点独立于私聊参与者，群规则是唯一配置来源。 */
 export declare function deriveGroupEndpoint(story: {

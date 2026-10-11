@@ -1714,6 +1714,10 @@ export class InterludeService extends Service {
         })
         this.reportOperation('diagnostic', 'debug', story, 'user-message', '参与者资料已从 Console 同步 参与者=%s', existing.id)
       }
+      await this.registerParticipantUserEndpointRow({
+        id: existing.id, platform: existing.platform, selfId: existing.selfId,
+        userId: existing.userId, channelId: session.channelId,
+      })
       return {
         ...existing, storyId: story.id, channelId: session.channelId, personId, displayName, profile, relationship,
         updatedAt: changed ? now : existing.updatedAt,
@@ -1747,7 +1751,10 @@ export class InterludeService extends Service {
       return raced
     }
     // P1-2：新参与者同步登记用户端点——入站匹配（P1-6）依赖注册表先行。
-    await this.registerParticipantUserEndpointRow({ id: participant.id, platform: participant.platform, selfId: participant.selfId, userId: participant.userId })
+    await this.registerParticipantUserEndpointRow({
+      id: participant.id, platform: participant.platform, selfId: participant.selfId,
+      userId: participant.userId, channelId: participant.channelId,
+    })
     await this.appendEntry(story.id, {
       kind: 'participant-joined', actor: 'system',
       content: `${participant.displayName} entered the character's relationship network.`,
@@ -7829,7 +7836,11 @@ export class InterludeService extends Service {
       }
     }
     for (const participant of (await this.dbGet('interlude_participant', { status: 'active' })) as any[]) {
-      if (participant?.id && participant.selfId && participant.userId) addDraft(deriveParticipantUserEndpoint({ id: String(participant.id), platform: String(participant.platform ?? 'onebot'), selfId: String(participant.selfId), userId: String(participant.userId) }, now))
+      if (participant?.id && participant.selfId && participant.userId) addDraft(deriveParticipantUserEndpoint({
+        id: String(participant.id), platform: String(participant.platform ?? 'onebot'),
+        selfId: String(participant.selfId), userId: String(participant.userId),
+        channelId: String(participant.channelId ?? ''),
+      }, now))
     }
     const persisted: EndpointRow[] = []
     for (const draft of drafts) {
@@ -7892,13 +7903,21 @@ export class InterludeService extends Service {
     })
   }
 
-  private async registerParticipantUserEndpointRow(participant: { id: string, platform: string, selfId: string, userId: string }) {
+  private async registerParticipantUserEndpointRow(participant: { id: string, platform: string, selfId: string, userId: string, channelId?: string }) {
     await this.enqueueEndpointWrite(async () => {
       try {
         await this.ensureEndpointRegistry()
         const now = new Date()
         const draft = deriveParticipantUserEndpoint(participant, now)
-        if (this.endpointRows.some(row => endpointUniqueKey(row) === endpointUniqueKey(draft))) return
+        const existing = this.endpointRows.find(row => endpointUniqueKey(row) === endpointUniqueKey(draft))
+        if (existing) {
+          if (draft.channelId && existing.channelId !== draft.channelId) {
+            await this.dbSet('interlude_endpoint', { id: existing.id }, { channelId: draft.channelId, updatedAt: now })
+            existing.channelId = draft.channelId
+            existing.updatedAt = now
+          }
+          return
+        }
         const row: EndpointRow = { ...draft, id: randomUUID() }
         await this.dbCreate('interlude_endpoint', row)
         this.endpointRows.push(row)

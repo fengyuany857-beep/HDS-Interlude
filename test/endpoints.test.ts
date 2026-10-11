@@ -241,11 +241,13 @@ test('Discord endpoints retain channel kind and snowflake strings', async () => 
   const story = deriveStoryRoleEndpoint({ id: 's-discord', platform: 'discord-user', selfId: '100000000000000001' })
   const participant = deriveParticipantUserEndpoint({
     id: 'p-discord', platform: 'discord-user', selfId: '100000000000000001', userId: '200000000000000002',
+    channelId: '300000000000000003',
   })
   assert.equal(story.channelKind, 'discord')
   assert.equal(participant.channelKind, 'discord')
   assert.equal(participant.selfId, '100000000000000001')
   assert.equal(participant.userId, '200000000000000002')
+  assert.equal(participant.channelId, '300000000000000003')
   assert.equal(normalizeEndpointRow({ ...participant, id: 'ep-discord' })?.channelKind, 'discord')
 })
 

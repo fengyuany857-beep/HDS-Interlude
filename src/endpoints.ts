@@ -81,13 +81,14 @@ export function deriveStoryRoleEndpoint(story: { id: string, platform: string, s
 }
 
 /** 迁移派生：旧参与者的单一用户端点。 */
-export function deriveParticipantUserEndpoint(participant: { id: string, platform: string, selfId: string, userId: string }, now = new Date()): EndpointRow {
+export function deriveParticipantUserEndpoint(participant: { id: string, platform: string, selfId: string, userId: string, channelId?: string }, now = new Date()): EndpointRow {
   return {
     id: '',
     ownerKind: 'participant-user', ownerId: participant.id,
     channelKind: defaultChannelKind(participant.platform), platform: participant.platform,
     accountKey: endpointAccountKey(participant.platform, participant.selfId),
     selfId: String(participant.selfId ?? ''), userId: String(participant.userId ?? ''),
+    ...(participant.channelId ? { channelId: String(participant.channelId) } : {}),
     conversationKind: 'private',
     enabled: true, createdAt: now, updatedAt: now,
   }
